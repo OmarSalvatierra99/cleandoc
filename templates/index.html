@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CleanDoc · Órgano de Fiscalización Superior de Tlaxcala</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='img/ofs_logo.png') }}">
+</head>
+
+<body>
+  <!-- =======================================================
+       CABECERA
+  ======================================================= -->
+  <header class="header-fixed">
+    <div class="header-content">
+      <img src="{{ url_for('static', filename='img/ofs_logo.png') }}" alt="Logo OFS Tlaxcala" class="ofs-logo">
+      <div class="header-text">
+        <h1>CleanDoc</h1>
+        <p>Sistema de limpieza institucional de documentos Word (.docx)</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- =======================================================
+       CONTENIDO PRINCIPAL
+  ======================================================= -->
+  <main class="main-content">
+    <section class="tool-card">
+      <h2>Limpieza automatizada de cédulas de auditoría</h2>
+      <p>
+        <strong>CleanDoc</strong> es una aplicación desarrollada por el 
+        <strong>Órgano de Fiscalización Superior del Estado de Tlaxcala (OFS)</strong> 
+        para depurar archivos Word de uso interno, garantizando uniformidad documental.
+      </p>
+
+      <p>El sistema realiza las siguientes operaciones sobre cada archivo <code>.docx</code>:</p>
+      <ul style="text-align:left; font-size:0.95rem; color:#374151; margin:1rem 0;">
+        <li>Elimina <strong>imágenes institucionales</strong> en los encabezados.</li>
+        <li>Borra el texto <em>“DIRECCIÓN DE AUDITORÍA A ENTES ESTATALES”</em> en cualquier formato o posición.</li>
+        <li>Suprime la línea <strong>“Elaboró: Revisó: Autorizó: Vo.Bo.”</strong> junto con todo lo que le sigue.</li>
+      </ul>
+
+      <p>El resto del contenido —observaciones, cédulas, cálculos y texto técnico— permanece sin alteraciones.</p>
+
+      <!-- Formulario -->
+      <form id="multiForm" enctype="multipart/form-data">
+        <label for="fileInput" style="font-weight:600;">Selecciona uno o varios archivos Word (.docx):</label>
+        <input type="file" id="fileInput" name="archivo" accept=".docx" multiple required>
+        <button type="submit">Procesar y limpiar</button>
+      </form>
+
+      <p id="statusMessage" class="status"></p>
+
+      <p style="font-size:0.85rem; color:#6b7280; margin-top:1rem;">
+        Los archivos se limpiarán automáticamente y se descargarán de inmediato.<br>
+        Si se cargan varios documentos, CleanDoc generará un archivo comprimido ZIP con todos los resultados.
+      </p>
+    </section>
+  </main>
+
+  <!-- =======================================================
+       PIE DE PÁGINA
+  ======================================================= -->
+  <footer class="dashboard-footer">
+    © Órgano de Fiscalización Superior del Estado de Tlaxcala — Sistema CleanDoc
+  </footer>
+
+  <!-- =======================================================
+       SCRIPT PRINCIPAL
+  ======================================================= -->
+  <script>
+    const form = document.getElementById("multiForm");
+    const status = document.getElementById("statusMessage");
+    const btn = form.querySelector("button");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const files = document.getElementById("fileInput").files;
+      if (!files.length) {
+        status.textContent = "Selecciona al menos un archivo .docx.";
+        return;
+      }
+
+      btn.disabled = true;
+      status.textContent = "Procesando documentos...";
+
+      const fd = new FormData();
+      for (const f of files) fd.append("archivo", f);
+
+      try {
+        const resp = await fetch("/limpiar_cedula", { method: "POST", body: fd });
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          status.textContent = data.error || "Error al procesar los documentos.";
+          btn.disabled = false;
+          return;
+        }
+
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const name = resp.headers.get("Content-Disposition")?.split("filename=")[1]?.replace(/"/g, "") || "resultado.zip";
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        status.textContent = "Descarga completada.";
+      } catch {
+        status.textContent = "Error de red o tiempo de espera.";
+      } finally {
+        btn.disabled = false;
+        form.reset();
+      }
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,39 @@
+# Entorno virtual
+venv/
+.env/
+.venv/
+
+# Archivos de logs
+*.log
+cleandoc.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Carpetas de ejemplo o pruebas
+ejemplos/
+
+# Archivos generados
+*.bak
+*.swp
+*.docx
+
+# Archivos específicos
+CLAUDE.md
+
+# Configuración de editores
+.vscode/
+.idea/
+
+# Distribución / builds
+dist/
+build/
+*.egg-info/
+

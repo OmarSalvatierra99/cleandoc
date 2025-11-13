@@ -1,0 +1,348 @@
+/* =========================================================
+   CleanDoc · OFS Tlaxcala
+   Diseño minimalista blanco
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --color-primary: #1e293b;
+  --color-accent: #3b82f6;
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+  --color-border: #e2e8f0;
+  --radius: 12px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.12);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* =========================================================
+   RESET
+   ========================================================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+.header-fixed {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  max-width: 1200px;
+  width: 100%;
+}
+
+.ofs-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+}
+
+.header-text h1 {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 1.75rem;
+  letter-spacing: -0.5px;
+}
+
+.header-text p {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+  margin-top: 0.25rem;
+}
+
+/* =========================================================
+   MAIN
+   ========================================================= */
+.main-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1.5rem;
+}
+
+.tool-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--color-border);
+  padding: 3.5rem;
+  max-width: 650px;
+  width: 100%;
+  transition: var(--transition);
+}
+
+.tool-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.tool-card h2 {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 1.875rem;
+  margin-bottom: 1rem;
+  letter-spacing: -0.5px;
+  text-align: center;
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  text-align: center;
+  margin-bottom: 2.5rem;
+  line-height: 1.6;
+}
+
+.features {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.features h3 {
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 1rem;
+}
+
+.features ul {
+  list-style: none;
+  padding: 0;
+}
+
+.features li {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+}
+
+.features li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* =========================================================
+   INPUTS & BUTTONS
+   ========================================================= */
+.upload-section {
+  margin-top: 2rem;
+}
+
+label {
+  display: block;
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+input[type="file"] {
+  width: 100%;
+  padding: 1.25rem;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.875rem;
+}
+
+input[type="file"]:hover {
+  border-color: var(--color-accent);
+  background: #f0f7ff;
+}
+
+input[type="file"]:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+button {
+  width: 100%;
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 1rem 2rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-top: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+button:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+button:disabled:hover {
+  background: var(--color-accent);
+  box-shadow: var(--shadow-sm);
+}
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+.status {
+  margin-top: 1rem;
+  color: var(--color-accent);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+  padding: 0.75rem;
+  background: #f0f7ff;
+  border-radius: var(--radius);
+}
+
+.note {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--color-accent);
+}
+
+.note p {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
+.dashboard-footer {
+  text-align: center;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  padding: 1.5rem;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 768px) {
+  .header-fixed {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .header-content {
+    gap: 1rem;
+  }
+
+  .header-text h1 {
+    font-size: 1.5rem;
+  }
+
+  .header-text p {
+    font-size: 0.8rem;
+  }
+
+  .main-content {
+    padding: 2.5rem 1rem;
+  }
+
+  .tool-card {
+    padding: 2.5rem 2rem;
+  }
+
+  .tool-card h2 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-content {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+
+  .ofs-logo {
+    height: 50px;
+  }
+
+  .header-text h1 {
+    font-size: 1.25rem;
+  }
+
+  .main-content {
+    padding: 2rem 1rem;
+  }
+
+  .tool-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .tool-card h2 {
+    font-size: 1.25rem;
+  }
+}
+
