@@ -1,68 +1,78 @@
-# Entorno virtual
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# AI agent files
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.cursorrules
+.cursor/
+.aider*
+
+# Virtual environment
 venv/
 .env/
+.env.bak/
 .venv/
 env/
 
-# Variables de entorno
-.env
-
-# Archivos de logs
+# Flask cache and instance data
+instance/
+*.db
+*.sqlite3
+*.sqlite
 *.log
-logs/
-cleandoc.log
+*.pid
+*.swp
 
-# Archivos del sistema
+# Environment variables
+*.env
+.env.*
+!.env.example
+
+# OS junk
 .DS_Store
 Thumbs.db
+.AppleDouble
+.LSOverride
 
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-
-# Carpetas de ejemplo o pruebas
-ejemplos/
-test_files/
-uploads/
-
-# Archivos generados
-*.bak
-*.swp
-*.docx
-*.zip
-
-# Archivos temporales
-tmp/
-temp/
-*.tmp
-
-# Archivos específicos
-CLAUDE.md
-
-# Configuración de editores
+# Editor / IDE
 .vscode/
 .idea/
+*.iml
 *.sublime-project
 *.sublime-workspace
 
-# Distribución / builds
-dist/
+# Python packaging
 build/
+dist/
 *.egg-info/
 
-# Coverage reports
-htmlcov/
+# Backup files
+*~
+*.bak
+
+# Temporary files
+/tmp/
+temp/
+*.tmp
+
+# Test coverage
 .coverage
-.coverage.*
-coverage.xml
+htmlcov/
+.pytest_cache/
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# Logs
+gunicorn.log
+*.log.*
+logs/
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# System files
+*.sock
+*.pid
+
+# Cache or compiled static assets
+static/css/*.map
+static/js/*.map

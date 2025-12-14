@@ -1,3 +1,6 @@
+Jinja2==3.1.4
+Werkzeug==3.0.4
+Flask==3.0.3
 # CleanDoc - Dependencias
 # ========================
 
@@ -8,7 +11,7 @@ flask==3.0.3
 python-docx==1.1.2
 
 # Servidor WSGI para producción
-gunicorn==23.0.0
+gunicorn==22.0.0
 
 # Parser XML (requerido por python-docx)
 lxml==5.3.0
