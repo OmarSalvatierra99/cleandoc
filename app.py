@@ -19,9 +19,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
-log_dir = Path('logs')
+log_dir = Path('log')
 log_dir.mkdir(exist_ok=True)
-handler = RotatingFileHandler('logs/cleandoc.log', maxBytes=10*1024*1024, backupCount=10)
+handler = RotatingFileHandler('log/cleandoc.log', maxBytes=10*1024*1024, backupCount=10)
 handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s'))
 app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
