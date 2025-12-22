@@ -26,7 +26,6 @@ CleanDoc es una herramienta profesional de alta confiabilidad diseñada para el 
 - 🏗️ **Arquitectura modular**: Separación clara de responsabilidades
 - 🔒 **Seguridad robusta**: Headers HTTP de seguridad, validación de archivos, sanitización
 - 📝 **Logging completo**: Sistema de logs con rotación
-- 🧪 **Tests unitarios**: Cobertura de la lógica principal
 - 📖 **Documentación**: Type hints, docstrings, comentarios explicativos
 
 ---
@@ -35,34 +34,22 @@ CleanDoc es una herramienta profesional de alta confiabilidad diseñada para el 
 
 ```
 CleanDoc/
-├── app/
-│   ├── __init__.py              # Factory de la aplicación Flask
-│   ├── config.py                # Configuración centralizada
-│   ├── routes/
-│   │   ├── __init__.py
-│   │   └── main.py              # Rutas y endpoints
-│   ├── services/
-│   │   ├── __init__.py
-│   │   └── document_cleaner.py  # Lógica de limpieza de documentos
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   ├── validators.py        # Validación y sanitización
-│   │   └── exceptions.py        # Excepciones personalizadas
-│   ├── static/
-│   │   ├── css/
-│   │   │   └── style.css        # Estilos modernos
-│   │   └── img/
-│   │       └── ofs_logo.png
-│   └── templates/
-│       └── index.html           # Interfaz web
-├── tests/
-│   ├── __init__.py
-│   └── test_document_cleaner.py # Tests unitarios
-├── logs/                        # Logs de la aplicación (auto-creado)
-├── .env.example                 # Plantilla de variables de entorno
+├── app.py                       # Punto de entrada único
+├── config.py                    # Configuración centralizada
+├── scripts/
+│   └── utils.py                 # Validación y limpieza de documentos
+├── log/
+│   └── app.log                  # Logs de la aplicación (auto-creado)
+├── templates/
+│   └── index.html               # Interfaz web
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   └── img/
+│       └── ofs_logo.png
 ├── .gitignore
 ├── requirements.txt
-├── run.py                       # Punto de entrada
 └── README.md
 ```
 
@@ -88,12 +75,8 @@ source venv/bin/activate  # En Windows: venv\Scripts\activate
 # Instalar dependencias
 pip install -r requirements.txt
 
-# Configurar variables de entorno (opcional)
-cp .env.example .env
-# Editar .env según necesidades
-
 # Ejecutar la aplicación
-python run.py
+python app.py
 ```
 
 La aplicación estará disponible en `http://localhost:4085`
@@ -104,7 +87,7 @@ La aplicación estará disponible en `http://localhost:4085`
 
 ### Variables de Entorno
 
-Crea un archivo `.env` basado en `.env.example`:
+Crea un archivo `.env` si necesitas personalizar variables:
 
 ```env
 # Entorno de la aplicación
@@ -120,7 +103,7 @@ DEBUG=False
 
 # Logging
 LOG_LEVEL=INFO                # DEBUG, INFO, WARNING, ERROR, CRITICAL
-LOG_FILE=logs/cleandoc.log
+LOG_FILE=log/app.log
 
 # Uploads (opcional)
 UPLOAD_FOLDER=/tmp/cleandoc_uploads
@@ -130,7 +113,7 @@ UPLOAD_FOLDER=/tmp/cleandoc_uploads
 
 ```bash
 # Usar gunicorn para producción
-gunicorn -w 4 -b 0.0.0.0:4085 "app:create_app('production')"
+gunicorn -w 4 -b 0.0.0.0:4085 app:app
 ```
 
 ---
@@ -163,23 +146,6 @@ Elementos eliminados:
   • 5 párrafos institucionales
   • 2 textboxes limpios
   • Sección de firmas completa
-```
-
----
-
-## 🧪 Tests
-
-Ejecutar los tests unitarios:
-
-```bash
-# Ejecutar todos los tests
-python -m unittest discover tests
-
-# Ejecutar un test específico
-python -m unittest tests.test_document_cleaner
-
-# Con más detalle
-python -m unittest tests.test_document_cleaner -v
 ```
 
 ---
@@ -299,7 +265,6 @@ chmod 755 logs
 - ✨ Logging profesional con rotación
 - ✨ Validación y sanitización robusta
 - ✨ Headers de seguridad HTTP
-- ✨ Tests unitarios
 - ✨ Type hints y documentación completa
 
 ### v1.0.0

@@ -1,31 +1,156 @@
 """
-CleanDoc - Servicio de limpieza de documentos
-==============================================
-Servicio principal para limpiar documentos DOCX institucionales.
-
-IMPORTANTE: Este servicio SOLO limpia elementos institucionales de los encabezados,
-imágenes en headers, textboxes y la sección de firmas. El contenido del documento
-permanece INTACTO.
+CleanDoc - Utilidades y servicios auxiliares
+============================================
+Funciones de validacion, excepciones y limpieza de documentos.
 """
 
 import logging
+import os
 import re
-from io import BytesIO
-from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
+from io import BytesIO
+from pathlib import Path
+from typing import Optional, Dict, Any
 
 from docx import Document
-from lxml import etree
+from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 
-from ..utils.exceptions import FileProcessingError
-
-# Configurar logger
 logger = logging.getLogger(__name__)
+
+
+class CleanDocError(Exception):
+    """Excepcion base para errores de CleanDoc."""
+
+    def __init__(self, message: str, status_code: int = 500):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(self.message)
+
+
+class InvalidFileError(CleanDocError):
+    """Excepcion cuando el archivo no es válido."""
+
+    def __init__(self, message: str = "Archivo inválido"):
+        super().__init__(message, status_code=400)
+
+
+class FileProcessingError(CleanDocError):
+    """Excepcion durante el procesamiento del archivo."""
+
+    def __init__(self, message: str = "Error al procesar el archivo", filename: str = None):
+        self.filename = filename
+        full_message = f"{message}: {filename}" if filename else message
+        super().__init__(full_message, status_code=500)
+
+
+class NoFilesProvidedError(CleanDocError):
+    """Excepcion cuando no se proporcionan archivos."""
+
+    def __init__(self, message: str = "No se proporcionaron archivos"):
+        super().__init__(message, status_code=400)
+
+
+class FileTooLargeError(CleanDocError):
+    """Excepcion cuando el archivo excede el tamaño máximo."""
+
+    def __init__(self, message: str = "El archivo excede el tamaño máximo permitido"):
+        super().__init__(message, status_code=413)
+
+
+class UnsupportedFileTypeError(CleanDocError):
+    """Excepcion cuando el tipo de archivo no esta soportado."""
+
+    def __init__(self, message: str = "Tipo de archivo no soportado. Solo se permiten archivos .docx"):
+        super().__init__(message, status_code=415)
+
+
+def sanitize_filename(filename: str) -> str:
+    """Sanitiza el nombre del archivo para prevenir path traversal."""
+    if not filename:
+        raise InvalidFileError("El nombre del archivo está vacío")
+
+    safe_name = secure_filename(filename)
+
+    if not safe_name:
+        raise InvalidFileError(f"Nombre de archivo inválido: {filename}")
+
+    if not re.match(r'^[\w\-. ]+$', safe_name):
+        raise InvalidFileError(
+            f"Nombre de archivo contiene caracteres no permitidos: {filename}"
+        )
+
+    return safe_name
+
+
+def validate_file_extension(filename: str, allowed_extensions: set = {'.docx'}) -> bool:
+    """Valida que el archivo tenga una extensión permitida."""
+    if not filename:
+        raise InvalidFileError("El nombre del archivo está vacío")
+
+    file_ext = Path(filename).suffix.lower()
+
+    if file_ext not in allowed_extensions:
+        raise UnsupportedFileTypeError(
+            f"Extensión '{file_ext}' no permitida. Solo se permiten: {', '.join(allowed_extensions)}"
+        )
+
+    return True
+
+
+def validate_file_size(file: FileStorage, max_size: int = 50 * 1024 * 1024) -> bool:
+    """Valida que el archivo no exceda el tamaño máximo."""
+    if file is None:
+        raise InvalidFileError("El archivo es None")
+
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+
+    if size > max_size:
+        max_size_mb = max_size / (1024 * 1024)
+        current_size_mb = size / (1024 * 1024)
+        raise FileTooLargeError(
+            f"El archivo ({current_size_mb:.2f} MB) excede el tamaño máximo permitido ({max_size_mb:.2f} MB)"
+        )
+
+    return True
+
+
+def validate_docx_file(file: FileStorage, max_size: int = 50 * 1024 * 1024) -> tuple[str, bool]:
+    """Valida completamente un archivo DOCX."""
+    if not file or not file.filename:
+        raise InvalidFileError("No se proporcionó un archivo válido")
+
+    safe_filename = sanitize_filename(file.filename)
+    validate_file_extension(safe_filename)
+    validate_file_size(file, max_size)
+
+    return safe_filename, True
+
+
+def is_valid_docx_content(file_stream) -> bool:
+    """Valida que el contenido sea un DOCX verificando firma ZIP."""
+    try:
+        file_stream.seek(0)
+        header = file_stream.read(4)
+        file_stream.seek(0)
+
+        zip_signatures = [
+            b'PK\x03\x04',
+            b'PK\x05\x06',
+            b'PK\x07\x08',
+        ]
+
+        return any(header.startswith(sig) for sig in zip_signatures)
+
+    except Exception:
+        return False
 
 
 @dataclass
 class CleaningStats:
-    """Estadísticas de limpieza de un documento"""
+    """Estadísticas de limpieza de un documento."""
     images_removed: int = 0
     institutional_paragraphs_cleaned: int = 0
     textboxes_cleaned: int = 0
@@ -34,7 +159,6 @@ class CleaningStats:
     errors: list = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convierte las estadísticas a un diccionario"""
         return {
             'images_removed': self.images_removed,
             'institutional_paragraphs_cleaned': self.institutional_paragraphs_cleaned,
@@ -47,20 +171,8 @@ class CleaningStats:
 
 
 class DocumentCleaner:
-    """
-    Limpiador de documentos DOCX institucionales.
+    """Limpiador de documentos DOCX institucionales."""
 
-    Este servicio elimina:
-    1. Imágenes de encabezados (excepto las que están en tablas)
-    2. Texto institucional en párrafos ("ÓRGANO DE FISCALIZACIÓN SUPERIOR", etc.)
-    3. Texto institucional en textboxes
-    4. Sección de firmas (desde "Elaboró" hasta el final)
-
-    GARANTÍA: El contenido principal del documento permanece INTACTO.
-    Solo se modifican encabezados, imágenes de headers, textboxes y firmas.
-    """
-
-    # Patrones de búsqueda para texto institucional
     PATTERN_ORGANO = re.compile(
         r"ÓRGANO\s+DE\s+FISCALIZACI[ÓO]N\s+SUPERIOR",
         re.IGNORECASE
@@ -77,69 +189,37 @@ class DocumentCleaner:
     )
 
     def __init__(self):
-        """Inicializa el limpiador de documentos"""
         self.stats = CleaningStats()
 
     @staticmethod
     def _normalize_whitespace(text: str) -> str:
-        """
-        Normaliza espacios en blanco en un texto.
-
-        Args:
-            text: Texto a normalizar
-
-        Returns:
-            Texto con espacios normalizados
-        """
         return re.sub(r"\s+", " ", text or "")
 
     def _remove_header_images(self, doc: Document) -> None:
-        """
-        Elimina imágenes de los encabezados del documento.
-
-        IMPORTANTE: Preserva imágenes que están dentro de tablas.
-        Elimina tanto imágenes DrawingML modernas como imágenes VML antiguas.
-
-        Args:
-            doc: Documento a procesar
-        """
-        logger.debug("Eliminando imágenes de encabezados...")
-
         for section in doc.sections:
             try:
-                # Eliminar imágenes DrawingML modernas (<drawing>)
                 drawings = section.header._element.xpath(".//*[local-name()='drawing']")
                 for shape in drawings:
-                    # Verificar si está dentro de una tabla
                     if shape.xpath("ancestor::*[local-name()='tbl']"):
-                        logger.debug("Preservando imagen dentro de tabla")
                         continue
 
                     parent = shape.getparent()
                     if parent is not None:
                         parent.remove(shape)
                         self.stats.images_removed += 1
-                        logger.debug("Imagen DrawingML eliminada")
 
-                # Eliminar imágenes VML antiguas (<pict>)
-                # IMPORTANTE: NO eliminar <pict> que contengan textboxes
                 picts = section.header._element.xpath(".//*[local-name()='pict']")
                 for pict in picts:
-                    # Verificar si está dentro de una tabla
                     if pict.xpath("ancestor::*[local-name()='tbl']"):
-                        logger.debug("Preservando imagen VML dentro de tabla")
                         continue
 
-                    # NO eliminar si contiene textboxes (contienen texto importante)
                     if pict.xpath(".//*[local-name()='txbxContent']"):
-                        logger.debug("Preservando pict con textbox")
                         continue
 
                     parent = pict.getparent()
                     if parent is not None:
                         parent.remove(pict)
                         self.stats.images_removed += 1
-                        logger.debug("Imagen VML eliminada")
 
             except Exception as e:
                 error_msg = f"Error eliminando imágenes de encabezado: {str(e)}"
@@ -147,40 +227,22 @@ class DocumentCleaner:
                 self.stats.errors.append(error_msg)
 
     def _clean_institutional_paragraphs(self, doc: Document) -> None:
-        """
-        Limpia párrafos que contienen texto institucional.
-
-        Elimina o limpia párrafos que contienen:
-        - "ÓRGANO DE FISCALIZACIÓN SUPERIOR"
-        - "DIRECCIÓN DE AUDITORÍA A ENTES ESTATALES"
-
-        Args:
-            doc: Documento a procesar
-        """
-        logger.debug("Limpiando párrafos institucionales...")
-
         for p in list(doc.paragraphs):
             try:
                 texto = p.text
                 if self.PATTERN_ORGANO.search(texto) or self.PATTERN_DIRECCION.search(texto):
-                    # Limpiar el texto completo del párrafo
                     texto_limpio = self.PATTERN_ORGANO.sub("", texto)
-                    texto_limpio = self.PATTERN_DIRECCION.sub("", texto_limpio)
-                    texto_limpio = texto_limpio.strip()
+                    texto_limpio = self.PATTERN_DIRECCION.sub("", texto_limpio).strip()
 
                     if texto_limpio:
-                        # Si queda texto, preservarlo en el primer run
                         if p.runs:
                             p.runs[0].text = texto_limpio
                             for run in p.runs[1:]:
                                 run.text = ""
                             self.stats.institutional_paragraphs_cleaned += 1
-                            logger.debug(f"Párrafo limpiado: '{texto}' -> '{texto_limpio}'")
                     else:
-                        # Si no queda texto, eliminar el párrafo completo
                         p._element.getparent().remove(p._element)
                         self.stats.paragraphs_removed += 1
-                        logger.debug(f"Párrafo eliminado: '{texto}'")
 
             except Exception as e:
                 error_msg = f"Error limpiando párrafo: {str(e)}"
@@ -188,12 +250,6 @@ class DocumentCleaner:
                 self.stats.errors.append(error_msg)
 
     def _clean_textboxes(self, xmlroot) -> None:
-        """
-        Limpia texto institucional dentro de textboxes.
-
-        Args:
-            xmlroot: Elemento raíz XML a procesar
-        """
         try:
             for p in xmlroot.xpath(".//*[local-name()='txbxContent']//*[local-name()='p']"):
                 ts = p.xpath(".//*[local-name()='t']")
@@ -204,10 +260,8 @@ class DocumentCleaner:
                     self._normalize_whitespace(t.text) for t in ts if t.text
                 )
 
-                # Aplicar los mismos patrones de limpieza
                 nuevo = self.PATTERN_ORGANO.sub("", original)
-                nuevo = self.PATTERN_DIRECCION.sub("", nuevo)
-                nuevo = nuevo.strip()
+                nuevo = self.PATTERN_DIRECCION.sub("", nuevo).strip()
 
                 if nuevo != original:
                     ts[0].text = nuevo
@@ -215,9 +269,7 @@ class DocumentCleaner:
                         t.text = ""
 
                     self.stats.textboxes_cleaned += 1
-                    logger.debug(f"Textbox limpiado: '{original}' -> '{nuevo}'")
 
-                    # Si no queda texto, eliminar el párrafo
                     if not nuevo:
                         parent = p.getparent()
                         if parent is not None:
@@ -229,105 +281,43 @@ class DocumentCleaner:
             self.stats.errors.append(error_msg)
 
     def _remove_signature_section(self, doc: Document) -> None:
-        """
-        Elimina la sección de firmas del documento.
-
-        Busca el primer "Elaboró" y elimina todo desde ahí hasta el final.
-
-        Args:
-            doc: Documento a procesar
-        """
-        logger.debug("Buscando sección de firmas...")
-
         try:
             indice_inicio = None
             for i, p in enumerate(doc.paragraphs):
-                # Buscar "Elaboró" sin espacios
                 if self.PATTERN_ELABORO.search(p.text.replace(" ", "")):
                     indice_inicio = i
-                    logger.debug(f"Sección de firmas encontrada en párrafo {i}: '{p.text}'")
                     break
 
             if indice_inicio is not None:
-                # Contar cuántos párrafos se eliminarán
                 paragraphs_to_remove = len(doc.paragraphs) - indice_inicio
-
-                # Eliminar todos los párrafos desde "Elaboró" hasta el final
                 for j in range(len(doc.paragraphs) - 1, indice_inicio - 1, -1):
                     para = doc.paragraphs[j]
                     para._element.getparent().remove(para._element)
 
                 self.stats.signature_section_removed = True
                 self.stats.paragraphs_removed += paragraphs_to_remove
-                logger.info(f"Sección de firmas eliminada ({paragraphs_to_remove} párrafos)")
-            else:
-                logger.debug("No se encontró sección de firmas")
 
         except Exception as e:
             error_msg = f"Error eliminando sección de firmas: {str(e)}"
             logger.error(error_msg)
             self.stats.errors.append(error_msg)
 
-    def clean_document(
-        self,
-        file_stream,
-        filename: Optional[str] = None
-    ) -> tuple[BytesIO, CleaningStats]:
-        """
-        Limpia un documento DOCX eliminando elementos institucionales.
-
-        Este método:
-        1. Elimina imágenes de encabezados (excepto las de tablas)
-        2. Limpia texto institucional en párrafos
-        3. Limpia texto institucional en textboxes
-        4. Elimina la sección de firmas
-
-        GARANTÍA: El contenido principal del documento NO se modifica.
-
-        Args:
-            file_stream: Stream del archivo DOCX
-            filename: Nombre del archivo (opcional, para logging)
-
-        Returns:
-            Tupla con (archivo_limpio, estadísticas)
-
-        Raises:
-            FileProcessingError: Si hay un error procesando el documento
-        """
-        # Reiniciar estadísticas
+    def clean_document(self, file_stream, filename: Optional[str] = None) -> tuple[BytesIO, CleaningStats]:
         self.stats = CleaningStats()
 
-        logger.info(f"Iniciando limpieza de documento: {filename or 'sin nombre'}")
-
         try:
-            # Cargar el documento
             doc = Document(file_stream)
-            logger.debug("Documento cargado exitosamente")
-
-            # 1. Eliminar imágenes de encabezados
             self._remove_header_images(doc)
-
-            # 2. Limpiar párrafos institucionales
             self._clean_institutional_paragraphs(doc)
-
-            # 3. Limpiar textboxes en todo el documento
             self._clean_textboxes(doc._element)
             for section in doc.sections:
                 self._clean_textboxes(section.header._element)
                 self._clean_textboxes(section.footer._element)
-
-            # 4. Eliminar sección de firmas
             self._remove_signature_section(doc)
 
-            # Guardar el documento en memoria
             output = BytesIO()
             doc.save(output)
             output.seek(0)
-
-            logger.info(
-                f"Documento limpiado exitosamente: {filename or 'sin nombre'} - "
-                f"Estadísticas: {self.stats.to_dict()}"
-            )
 
             return output, self.stats
 
@@ -337,17 +327,11 @@ class DocumentCleaner:
             raise FileProcessingError(error_msg, filename=filename)
 
 
-# Instancia singleton del limpiador
 _cleaner_instance: Optional[DocumentCleaner] = None
 
 
 def get_cleaner() -> DocumentCleaner:
-    """
-    Obtiene la instancia singleton del limpiador de documentos.
-
-    Returns:
-        Instancia de DocumentCleaner
-    """
+    """Obtiene la instancia singleton del limpiador."""
     global _cleaner_instance
     if _cleaner_instance is None:
         _cleaner_instance = DocumentCleaner()
