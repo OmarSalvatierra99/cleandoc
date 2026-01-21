@@ -157,10 +157,14 @@ def _setup_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(413)
     def request_entity_too_large(error):
-        app.logger.warning("Intento de subir archivo demasiado grande")
+        max_total_mb = app.config.get("MAX_CONTENT_LENGTH", 0) / (1024 * 1024)
+        app.logger.warning("Intento de subir carga total demasiado grande")
         return jsonify({
-            "error": "Archivo demasiado grande",
-            "message": "El archivo excede el tamaño máximo permitido de 50 MB",
+            "error": "Carga demasiado grande",
+            "message": (
+                "La carga total excede el tamaño máximo permitido "
+                f"de {max_total_mb:.0f} MB"
+            ),
         }), 413
 
     app.logger.info("Manejadores de errores configurados")
@@ -233,7 +237,7 @@ def _process_files(
     cleaner = get_cleaner()
     cleaned_files = []
     stats_list = []
-    max_size = current_app.config.get('MAX_CONTENT_LENGTH', 50 * 1024 * 1024)
+    max_size = current_app.config.get('MAX_FILE_SIZE', 50 * 1024 * 1024)
 
     for file in files:
         if not file or not file.filename:

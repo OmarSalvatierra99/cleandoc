@@ -13,7 +13,10 @@ class Config:
 
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 
-    MAX_CONTENT_LENGTH: Final[int] = 50 * 1024 * 1024  # 50 MB
+    MAX_FILE_SIZE: Final[int] = 50 * 1024 * 1024  # 50 MB por archivo
+    MAX_CONTENT_LENGTH: Final[int] = int(
+        os.getenv("MAX_CONTENT_LENGTH", str(200 * 1024 * 1024))
+    )
     ALLOWED_EXTENSIONS: Final[set] = {'.docx'}
     UPLOAD_FOLDER: str = os.getenv("UPLOAD_FOLDER", "/tmp/cleandoc_uploads")
 
