@@ -10,9 +10,10 @@ import re
 from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 from docx import Document
+from pypdf import PdfReader, PdfWriter, PageObject, Transformation
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -98,6 +99,18 @@ def validate_file_extension(filename: str, allowed_extensions: set = {'.docx'}) 
     return True
 
 
+def validate_pdf_file(file: FileStorage, max_size: int = 50 * 1024 * 1024) -> Tuple[str, bool]:
+    """Valida completamente un archivo PDF."""
+    if not file or not file.filename:
+        raise InvalidFileError("No se proporcionó un archivo PDF válido")
+
+    safe_filename = sanitize_filename(file.filename)
+    validate_file_extension(safe_filename, allowed_extensions={'.pdf'})
+    validate_file_size(file, max_size)
+
+    return safe_filename, True
+
+
 def validate_file_size(file: FileStorage, max_size: int = 50 * 1024 * 1024) -> bool:
     """Valida que el archivo no exceda el tamaño máximo."""
     if file is None:
@@ -146,6 +159,97 @@ def is_valid_docx_content(file_stream) -> bool:
 
     except Exception:
         return False
+
+
+def is_valid_pdf_content(file_stream) -> bool:
+    """Valida que el contenido sea un PDF verificando su encabezado."""
+    try:
+        file_stream.seek(0)
+        header = file_stream.read(5)
+        file_stream.seek(0)
+        return header.startswith(b'%PDF-')
+    except Exception:
+        return False
+
+
+@dataclass
+class PdfScalingStats:
+    """Estadísticas de escalado de un PDF."""
+    total_pages: int = 0
+    adjusted_pages: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'total_pages': self.total_pages,
+            'adjusted_pages': self.adjusted_pages,
+        }
+
+
+PDF_PAGE_SIZES = {
+    "LETTER": (612.0, 792.0),  # 8.5 x 11 in
+    "A4": (595.28, 841.89),    # 210 x 297 mm
+}
+
+
+def scale_pdf_for_print(
+    file_stream,
+    target_size: str = "LETTER",
+    allow_upscale: bool = False,
+) -> tuple[BytesIO, PdfScalingStats]:
+    """Escala un PDF para impresión sin recortar contenido."""
+    if target_size not in PDF_PAGE_SIZES:
+        raise InvalidFileError("Tamaño de página no soportado")
+
+    target_width, target_height = PDF_PAGE_SIZES[target_size]
+    stats = PdfScalingStats()
+
+    try:
+        reader = PdfReader(file_stream)
+        if reader.is_encrypted:
+            if not reader.decrypt(""):
+                raise InvalidFileError("El PDF está protegido con contraseña")
+
+        writer = PdfWriter()
+
+        for page in reader.pages:
+            stats.total_pages += 1
+            width = float(page.mediabox.width)
+            height = float(page.mediabox.height)
+
+            scale = min(target_width / width, target_height / height)
+            if not allow_upscale:
+                scale = min(scale, 1.0)
+
+            new_page = PageObject.create_blank_page(
+                width=target_width,
+                height=target_height,
+            )
+
+            tx = (target_width - width * scale) / 2
+            ty = (target_height - height * scale) / 2
+
+            content_page = page.copy()
+            content_page.add_transformation(
+                Transformation().scale(scale).translate(tx, ty)
+            )
+            new_page.merge_page(content_page)
+            writer.add_page(new_page)
+
+            if width != target_width or height != target_height or scale != 1.0:
+                stats.adjusted_pages += 1
+
+        output = BytesIO()
+        writer.write(output)
+        output.seek(0)
+        return output, stats
+
+    except CleanDocError:
+        raise
+
+    except Exception as e:
+        error_msg = f"Error escalando PDF: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise FileProcessingError(error_msg)
 
 
 @dataclass

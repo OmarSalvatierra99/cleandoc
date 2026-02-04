@@ -26,67 +26,129 @@
        CONTENIDO PRINCIPAL
   ======================================================= -->
   <main class="main-content">
-    <section class="tool-card">
-      <h2>Limpieza automatizada de cédulas de auditoría</h2>
-      <p>
-        <strong>CleanDoc</strong> es una aplicación desarrollada por el
-        <strong>Órgano de Fiscalización Superior del Estado de Tlaxcala (OFS)</strong>
-        para depurar archivos Word de uso interno, garantizando uniformidad documental.
-      </p>
+    <div class="tools-stack">
+      <section class="tool-card">
+        <h2>Limpieza automatizada de cédulas de auditoría</h2>
+        <p>
+          <strong>CleanDoc</strong> es una aplicación desarrollada por el
+          <strong>Órgano de Fiscalización Superior del Estado de Tlaxcala (OFS)</strong>
+          para depurar archivos Word de uso interno, garantizando uniformidad documental.
+        </p>
 
-      <p>El sistema realiza las siguientes operaciones sobre cada archivo <code>.docx</code>:</p>
-      <ul style="text-align:left; font-size:0.95rem; color:#374151; margin:1rem 0;">
-        <li>Elimina <strong>imágenes institucionales</strong> en los encabezados.</li>
-        <li>Borra el texto <em>"DIRECCIÓN DE AUDITORÍA A ENTES ESTATALES"</em> en cualquier formato o posición.</li>
-        <li>Suprime la línea <strong>"Elaboró: Revisó: Autorizó: Vo.Bo."</strong> junto con todo lo que le sigue.</li>
-      </ul>
+        <p>El sistema realiza las siguientes operaciones sobre cada archivo <code>.docx</code>:</p>
+        <ul style="text-align:left; font-size:0.95rem; color:#374151; margin:1rem 0;">
+          <li>Elimina <strong>imágenes institucionales</strong> en los encabezados.</li>
+          <li>Borra el texto <em>"DIRECCIÓN DE AUDITORÍA A ENTES ESTATALES"</em> en cualquier formato o posición.</li>
+          <li>Suprime la línea <strong>"Elaboró: Revisó: Autorizó: Vo.Bo."</strong> junto con todo lo que le sigue.</li>
+        </ul>
 
-      <p>El resto del contenido —observaciones, cédulas, cálculos y texto técnico— permanece sin alteraciones.</p>
+        <p>El resto del contenido —observaciones, cédulas, cálculos y texto técnico— permanece sin alteraciones.</p>
 
-      <!-- Zona de Drag & Drop -->
-      <div class="upload-area" id="uploadArea">
-        <div class="upload-icon">📁</div>
-        <h3>Arrastra archivos aquí</h3>
-        <p>o haz clic para seleccionar</p>
-        <input type="file" id="fileInput" name="archivo" accept=".docx" multiple hidden>
-        <span class="file-types">Solo archivos .docx (máx. 50 MB)</span>
-      </div>
-
-      <!-- Vista previa de archivos -->
-      <div id="filePreview" class="file-preview hidden">
-        <h3>Archivos seleccionados (<span id="fileCount">0</span>)</h3>
-        <div id="fileList" class="file-list"></div>
-        <button type="button" id="processBtn" class="btn-primary">
-          <span class="btn-icon">🔧</span>
-          Procesar y limpiar
-        </button>
-      </div>
-
-      <!-- Barra de progreso -->
-      <div id="progressContainer" class="progress-container hidden">
-        <div class="progress-header">
-          <span id="progressText">Procesando documentos...</span>
-          <span id="progressPercent">0%</span>
+        <!-- Zona de Drag & Drop -->
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">📁</div>
+          <h3>Arrastra archivos aquí</h3>
+          <p>o haz clic para seleccionar</p>
+          <input type="file" id="fileInput" name="archivo" accept=".docx" multiple hidden>
+          <span class="file-types">Solo archivos .docx (máx. 50 MB)</span>
         </div>
-        <div class="progress-bar">
-          <div id="progressFill" class="progress-fill"></div>
+
+        <!-- Vista previa de archivos -->
+        <div id="filePreview" class="file-preview hidden">
+          <h3>Archivos seleccionados (<span id="fileCount">0</span>)</h3>
+          <div id="fileList" class="file-list"></div>
+          <button type="button" id="processBtn" class="btn-primary">
+            <span class="btn-icon">🔧</span>
+            Procesar y limpiar
+          </button>
         </div>
-      </div>
 
-      <!-- Mensaje de estado -->
-      <div id="statusMessage" class="status-message hidden"></div>
+        <!-- Barra de progreso -->
+        <div id="progressContainer" class="progress-container hidden">
+          <div class="progress-header">
+            <span id="progressText">Procesando documentos...</span>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+        </div>
 
-      <!-- Estadísticas de limpieza -->
-      <div id="statsContainer" class="stats-container hidden">
-        <h3>Estadísticas de limpieza</h3>
-        <div class="stats-grid" id="statsGrid"></div>
-      </div>
+        <!-- Mensaje de estado -->
+        <div id="statusMessage" class="status-message hidden"></div>
 
-      <p style="font-size:0.85rem; color:#6b7280; margin-top:1rem;">
-        Los archivos se limpiarán automáticamente y se descargarán de inmediato.<br>
-        Si se cargan varios documentos, CleanDoc generará un archivo comprimido ZIP con todos los resultados.
-      </p>
-    </section>
+        <!-- Estadísticas de limpieza -->
+        <div id="statsContainer" class="stats-container hidden">
+          <h3>Estadísticas de limpieza</h3>
+          <div class="stats-grid" id="statsGrid"></div>
+        </div>
+
+        <p style="font-size:0.85rem; color:#6b7280; margin-top:1rem;">
+          Los archivos se limpiarán automáticamente y se descargarán de inmediato.<br>
+          Si se cargan varios documentos, CleanDoc generará un archivo comprimido ZIP con todos los resultados.
+        </p>
+      </section>
+
+      <section class="tool-card">
+        <h2>Organizador de cédulas de resultados y solventación</h2>
+        <p>
+          Este módulo ajusta PDFs de cédulas para impresión sin recortar contenido.
+          Cada página se centra y se escala para que toda la información quede visible
+          en tamaño Carta.
+        </p>
+
+        <p>Instrucciones rápidas:</p>
+        <ul style="text-align:left; font-size:0.95rem; color:#374151; margin:1rem 0;">
+          <li>Sube uno o varios archivos <code>.pdf</code>.</li>
+          <li>Haz clic en <strong>Escalar para impresión</strong>.</li>
+          <li>Descarga el PDF ajustado (o un ZIP si son varios).</li>
+        </ul>
+
+        <!-- Zona de Drag & Drop PDF -->
+        <div class="upload-area" id="uploadAreaPdf">
+          <div class="upload-icon">🧾</div>
+          <h3>Arrastra PDFs aquí</h3>
+          <p>o haz clic para seleccionar</p>
+          <input type="file" id="fileInputPdf" name="archivo" accept=".pdf" multiple hidden>
+          <span class="file-types">Solo archivos .pdf (máx. 50 MB)</span>
+        </div>
+
+        <!-- Vista previa de PDFs -->
+        <div id="filePreviewPdf" class="file-preview hidden">
+          <h3>PDFs seleccionados (<span id="fileCountPdf">0</span>)</h3>
+          <div id="fileListPdf" class="file-list"></div>
+          <button type="button" id="processBtnPdf" class="btn-primary">
+            <span class="btn-icon">📐</span>
+            Escalar para impresión
+          </button>
+        </div>
+
+        <!-- Barra de progreso PDF -->
+        <div id="progressContainerPdf" class="progress-container hidden">
+          <div class="progress-header">
+            <span id="progressTextPdf">Procesando PDFs...</span>
+            <span id="progressPercentPdf">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div id="progressFillPdf" class="progress-fill"></div>
+          </div>
+        </div>
+
+        <!-- Mensaje de estado PDF -->
+        <div id="statusMessagePdf" class="status-message hidden"></div>
+
+        <!-- Estadísticas PDF -->
+        <div id="statsContainerPdf" class="stats-container hidden">
+          <h3>Estadísticas de escalado</h3>
+          <div class="stats-grid" id="statsGridPdf"></div>
+        </div>
+
+        <p style="font-size:0.85rem; color:#6b7280; margin-top:1rem;">
+          El sistema ajusta el tamaño de cada página a Carta sin recortar.
+          Si se cargan varios PDFs, se generará un ZIP con todos los resultados.
+        </p>
+      </section>
+    </div>
   </main>
 
   <!-- =======================================================
@@ -117,8 +179,23 @@
     const statsContainer = document.getElementById("statsContainer");
     const statsGrid = document.getElementById("statsGrid");
 
+    const uploadAreaPdf = document.getElementById("uploadAreaPdf");
+    const fileInputPdf = document.getElementById("fileInputPdf");
+    const filePreviewPdf = document.getElementById("filePreviewPdf");
+    const fileListPdf = document.getElementById("fileListPdf");
+    const fileCountPdf = document.getElementById("fileCountPdf");
+    const processBtnPdf = document.getElementById("processBtnPdf");
+    const progressContainerPdf = document.getElementById("progressContainerPdf");
+    const progressFillPdf = document.getElementById("progressFillPdf");
+    const progressTextPdf = document.getElementById("progressTextPdf");
+    const progressPercentPdf = document.getElementById("progressPercentPdf");
+    const statusMessagePdf = document.getElementById("statusMessagePdf");
+    const statsContainerPdf = document.getElementById("statsContainerPdf");
+    const statsGridPdf = document.getElementById("statsGridPdf");
+
     // Estado de la aplicación
     let selectedFiles = [];
+    let selectedPdfFiles = [];
 
     // ============================================================
     // DRAG & DROP
@@ -154,6 +231,37 @@
       handleFiles(files);
     });
 
+    uploadAreaPdf.addEventListener("click", () => fileInputPdf.click());
+
+    uploadAreaPdf.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      uploadAreaPdf.classList.add("drag-over");
+    });
+
+    uploadAreaPdf.addEventListener("dragleave", () => {
+      uploadAreaPdf.classList.remove("drag-over");
+    });
+
+    uploadAreaPdf.addEventListener("drop", (e) => {
+      e.preventDefault();
+      uploadAreaPdf.classList.remove("drag-over");
+
+      const files = Array.from(e.dataTransfer.files).filter(
+        file => file.name.toLowerCase().endsWith('.pdf')
+      );
+
+      if (files.length > 0) {
+        handlePdfFiles(files);
+      } else {
+        showPdfStatus("Solo se permiten archivos .pdf", "error");
+      }
+    });
+
+    fileInputPdf.addEventListener("change", (e) => {
+      const files = Array.from(e.target.files);
+      handlePdfFiles(files);
+    });
+
     // ============================================================
     // MANEJO DE ARCHIVOS
     // ============================================================
@@ -162,6 +270,13 @@
       displayFilePreview();
       hideStatus();
       hideStats();
+    }
+
+    function handlePdfFiles(files) {
+      selectedPdfFiles = files;
+      displayPdfPreview();
+      hidePdfStatus();
+      hidePdfStats();
     }
 
     function displayFilePreview() {
@@ -211,6 +326,56 @@
 
       if (selectedFiles.length === 0) {
         fileInput.value = "";
+      }
+    }
+
+    function displayPdfPreview() {
+      if (selectedPdfFiles.length === 0) {
+        filePreviewPdf.classList.add("hidden");
+        return;
+      }
+
+      filePreviewPdf.classList.remove("hidden");
+      fileCountPdf.textContent = selectedPdfFiles.length;
+      fileListPdf.innerHTML = "";
+
+      selectedPdfFiles.forEach((file, index) => {
+        const fileItem = createPdfFileItem(file, index);
+        fileListPdf.appendChild(fileItem);
+      });
+    }
+
+    function createPdfFileItem(file, index) {
+      const item = document.createElement("div");
+      item.className = "file-item";
+
+      const fileSize = formatFileSize(file.size);
+
+      item.innerHTML = `
+        <div class="file-info">
+          <span class="file-icon">🧾</span>
+          <div class="file-details">
+            <span class="file-name">${escapeHtml(file.name)}</span>
+            <span class="file-size">${fileSize}</span>
+          </div>
+        </div>
+        <button type="button" class="btn-remove" data-index="${index}" title="Eliminar">
+          ✕
+        </button>
+      `;
+
+      const removeBtn = item.querySelector(".btn-remove");
+      removeBtn.addEventListener("click", () => removePdfFile(index));
+
+      return item;
+    }
+
+    function removePdfFile(index) {
+      selectedPdfFiles.splice(index, 1);
+      displayPdfPreview();
+
+      if (selectedPdfFiles.length === 0) {
+        fileInputPdf.value = "";
       }
     }
 
@@ -297,6 +462,71 @@
       }
     });
 
+    processBtnPdf.addEventListener("click", async () => {
+      if (selectedPdfFiles.length === 0) {
+        showPdfStatus("Selecciona al menos un archivo .pdf", "error");
+        return;
+      }
+
+      processBtnPdf.disabled = true;
+      showPdfProgress();
+      hidePdfStatus();
+      hidePdfStats();
+
+      const formData = new FormData();
+      selectedPdfFiles.forEach(file => formData.append("archivo", file));
+
+      try {
+        updatePdfProgress(10, "Enviando PDFs al servidor...");
+
+        const response = await fetch("/escalar_cedula_pdf", {
+          method: "POST",
+          body: formData
+        });
+
+        updatePdfProgress(60, "Ajustando páginas para impresión...");
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || "Error al procesar los PDFs");
+        }
+
+        updatePdfProgress(85, "Preparando descarga...");
+
+        const stats = extractPdfStats(response.headers);
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+
+        const contentDisposition = response.headers.get("Content-Disposition");
+        const filename = contentDisposition
+          ? contentDisposition.split("filename=")[1]?.replace(/"/g, "")
+          : "cedulas_escaladas.zip";
+
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        updatePdfProgress(100, "¡Completado!");
+
+        setTimeout(() => {
+          hidePdfProgress();
+          showPdfStatus("✅ Descarga completada exitosamente", "success");
+          displayPdfStats(stats);
+          resetPdfForm();
+        }, 500);
+
+      } catch (error) {
+        hidePdfProgress();
+        showPdfStatus(`❌ ${error.message}`, "error");
+        processBtnPdf.disabled = false;
+      }
+    });
+
     // ============================================================
     // UI HELPERS
     // ============================================================
@@ -324,6 +554,30 @@
       statusMessage.classList.add("hidden");
     }
 
+    function showPdfProgress() {
+      progressContainerPdf.classList.remove("hidden");
+    }
+
+    function hidePdfProgress() {
+      progressContainerPdf.classList.add("hidden");
+    }
+
+    function updatePdfProgress(percent, text) {
+      progressFillPdf.style.width = `${percent}%`;
+      progressPercentPdf.textContent = `${percent}%`;
+      progressTextPdf.textContent = text;
+    }
+
+    function showPdfStatus(message, type) {
+      statusMessagePdf.textContent = message;
+      statusMessagePdf.className = `status-message status-${type}`;
+      statusMessagePdf.classList.remove("hidden");
+    }
+
+    function hidePdfStatus() {
+      statusMessagePdf.classList.add("hidden");
+    }
+
     function extractStats(headers) {
       return {
         imagesRemoved: parseInt(headers.get("X-CleanDoc-Images-Removed") || 0),
@@ -332,6 +586,14 @@
         totalFiles: parseInt(headers.get("X-CleanDoc-Total-Files") || 1),
         totalImages: parseInt(headers.get("X-CleanDoc-Total-Images-Removed") || 0),
         totalParagraphs: parseInt(headers.get("X-CleanDoc-Total-Paragraphs-Cleaned") || 0)
+      };
+    }
+
+    function extractPdfStats(headers) {
+      return {
+        totalFiles: parseInt(headers.get("X-CleanDoc-Pdf-Total-Files") || 1),
+        totalPages: parseInt(headers.get("X-CleanDoc-Pdf-Total-Pages") || 0),
+        adjustedPages: parseInt(headers.get("X-CleanDoc-Pdf-Adjusted-Pages") || 0)
       };
     }
 
@@ -362,8 +624,39 @@
       statsContainer.classList.remove("hidden");
     }
 
+    function displayPdfStats(stats) {
+      const hasMultipleFiles = stats.totalFiles > 1;
+
+      statsGridPdf.innerHTML = `
+        ${hasMultipleFiles ? `
+          <div class="stat-item">
+            <div class="stat-value">${stats.totalFiles}</div>
+            <div class="stat-label">PDFs procesados</div>
+          </div>
+        ` : ''}
+        <div class="stat-item">
+          <div class="stat-value">${stats.totalPages}</div>
+          <div class="stat-label">Páginas totales</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${stats.adjustedPages}</div>
+          <div class="stat-label">Páginas ajustadas</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">Carta</div>
+          <div class="stat-label">Tamaño final</div>
+        </div>
+      `;
+
+      statsContainerPdf.classList.remove("hidden");
+    }
+
     function hideStats() {
       statsContainer.classList.add("hidden");
+    }
+
+    function hidePdfStats() {
+      statsContainerPdf.classList.add("hidden");
     }
 
     function resetForm() {
@@ -371,6 +664,13 @@
       fileInput.value = "";
       filePreview.classList.add("hidden");
       processBtn.disabled = false;
+    }
+
+    function resetPdfForm() {
+      selectedPdfFiles = [];
+      fileInputPdf.value = "";
+      filePreviewPdf.classList.add("hidden");
+      processBtnPdf.disabled = false;
     }
   </script>
 </body>

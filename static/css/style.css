@@ -132,13 +132,20 @@ code {
   padding: 4rem 1.5rem;
 }
 
+.tools-stack {
+  width: 100%;
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
 .tool-card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   border: 1px solid var(--color-border);
   padding: 3.5rem;
-  max-width: 700px;
   width: 100%;
   transition: var(--transition);
 }
@@ -583,6 +590,18 @@ code {
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .tools-stack {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .tool-card {
+    height: 100%;
   }
 }
 
