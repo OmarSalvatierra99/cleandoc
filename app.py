@@ -241,9 +241,21 @@ def _register_routes(app: Flask) -> None:
             if not files or all(not f.filename for f in files):
                 raise NoFilesProvidedError("No se proporcionaron archivos PDF")
 
-            app.logger.info(f"Recibidos {len(files)} PDFs para escalar")
+            target_size, allow_upscale, margin_ratio = _parse_pdf_options(request)
 
-            scaled_files, stats_list = _process_pdf_files(files)
+            app.logger.info(
+                f"Recibidos {len(files)} PDFs para escalar - "
+                f"Tamaño: {target_size}, "
+                f"Margen: {margin_ratio:.2f}, "
+                f"Escalado arriba: {'Sí' if allow_upscale else 'No'}"
+            )
+
+            scaled_files, stats_list = _process_pdf_files(
+                files,
+                target_size=target_size,
+                allow_upscale=allow_upscale,
+                margin_ratio=margin_ratio,
+            )
 
             if not scaled_files:
                 raise InvalidFileError("No se pudieron procesar PDFs válidos")
@@ -311,6 +323,9 @@ def _process_files(
 
 def _process_pdf_files(
     files: List[FileStorage],
+    target_size: str = "LETTER",
+    allow_upscale: bool = False,
+    margin_ratio: float = 0.92,
 ) -> Tuple[List[Tuple[str, BytesIO]], List[PdfScalingStats]]:
     """Procesa multiples archivos PDF y los escala para impresión."""
     scaled_files = []
@@ -332,7 +347,12 @@ def _process_pdf_files(
                 continue
 
             file.stream.seek(0)
-            scaled_stream, stats = scale_pdf_for_print(file.stream)
+            scaled_stream, stats = scale_pdf_for_print(
+                file.stream,
+                target_size=target_size,
+                allow_upscale=allow_upscale,
+                margin_ratio=margin_ratio,
+            )
 
             scaled_files.append((safe_filename, scaled_stream))
             stats_list.append(stats)
@@ -351,6 +371,28 @@ def _process_pdf_files(
             continue
 
     return scaled_files, stats_list
+
+
+def _parse_pdf_options(req) -> Tuple[str, bool, float]:
+    """Extrae y valida opciones de escalado desde el formulario."""
+    target_size = (req.form.get("target_size") or "LETTER").upper().strip()
+    if target_size not in ("LETTER", "A4"):
+        target_size = "LETTER"
+
+    allow_upscale = (req.form.get("allow_upscale") or "false").lower() == "true"
+
+    margin_raw = (req.form.get("margin_ratio") or "0.92").strip()
+    try:
+        margin_ratio = float(margin_raw)
+    except ValueError:
+        margin_ratio = 0.92
+
+    if margin_ratio < 0.85:
+        margin_ratio = 0.85
+    if margin_ratio > 1.0:
+        margin_ratio = 1.0
+
+    return target_size, allow_upscale, margin_ratio
 
 
 def _send_single_file(
@@ -446,8 +488,14 @@ def _send_single_pdf(
         mimetype="application/pdf",
     )
 
+    response.headers['X-CleanDoc-Pdf-Total-Files'] = "1"
     response.headers['X-CleanDoc-Pdf-Total-Pages'] = str(stats.total_pages)
     response.headers['X-CleanDoc-Pdf-Adjusted-Pages'] = str(stats.adjusted_pages)
+    response.headers['X-CleanDoc-Pdf-Avg-Scale'] = f"{stats.avg_scale:.4f}"
+    response.headers['X-CleanDoc-Pdf-Min-Scale'] = f"{stats.min_scale:.4f}"
+    response.headers['X-CleanDoc-Pdf-Max-Scale'] = f"{stats.max_scale:.4f}"
+    response.headers['X-CleanDoc-Pdf-Target-Size'] = stats.target_size
+    response.headers['X-CleanDoc-Pdf-Margin-Ratio'] = f"{stats.margin_ratio:.4f}"
 
     return response
 
@@ -481,10 +529,21 @@ def _send_multiple_pdfs(
 
         total_pages = sum(s.total_pages for s in stats_list)
         total_adjusted = sum(s.adjusted_pages for s in stats_list)
+        total_scale = sum(s.avg_scale * s.total_pages for s in stats_list)
+        avg_scale = total_scale / total_pages if total_pages else 1.0
+        min_scale = min(s.min_scale for s in stats_list) if stats_list else 1.0
+        max_scale = max(s.max_scale for s in stats_list) if stats_list else 1.0
+        target_size = stats_list[0].target_size if stats_list else "LETTER"
+        margin_ratio = stats_list[0].margin_ratio if stats_list else 0.95
 
         response.headers['X-CleanDoc-Pdf-Total-Files'] = str(len(files_data))
         response.headers['X-CleanDoc-Pdf-Total-Pages'] = str(total_pages)
         response.headers['X-CleanDoc-Pdf-Adjusted-Pages'] = str(total_adjusted)
+        response.headers['X-CleanDoc-Pdf-Avg-Scale'] = f"{avg_scale:.4f}"
+        response.headers['X-CleanDoc-Pdf-Min-Scale'] = f"{min_scale:.4f}"
+        response.headers['X-CleanDoc-Pdf-Max-Scale'] = f"{max_scale:.4f}"
+        response.headers['X-CleanDoc-Pdf-Target-Size'] = target_size
+        response.headers['X-CleanDoc-Pdf-Margin-Ratio'] = f"{margin_ratio:.4f}"
 
         current_app.logger.info(
             "ZIP PDF creado exitosamente - "
@@ -540,10 +599,15 @@ Resumen:
 ─────────────────────────────────────────────────────────────
   • Páginas totales: {stats.total_pages}
   • Páginas ajustadas: {stats.adjusted_pages}
+  • Escala promedio: {stats.avg_scale:.3f}
+  • Escala mínima: {stats.min_scale:.3f}
+  • Escala máxima: {stats.max_scale:.3f}
+  • Tamaño de salida: {stats.target_size}
+  • Margen aplicado: {stats.margin_ratio:.0%}
 
 Notas:
   • El contenido se centra y se escala sin recortar información.
-  • Tamaño de salida: Carta (8.5 x 11 in).
+  • Listo para impresión con márgenes de seguridad.
 
 ═══════════════════════════════════════════════════════════════
 © Órgano de Fiscalización Superior del Estado de Tlaxcala

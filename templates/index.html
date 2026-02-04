@@ -89,20 +89,30 @@
         </p>
       </section>
 
-      <section class="tool-card">
-        <h2>Organizador de cédulas de resultados y solventación</h2>
-        <p>
-          Este módulo ajusta PDFs de cédulas para impresión sin recortar contenido.
-          Cada página se centra y se escala para que toda la información quede visible
-          en tamaño Carta.
+      <section class="tool-card tool-card--minimal">
+        <h2>Organizador de PDFs para impresión</h2>
+        <p class="tool-note">
+          Ajusta y centra cada página para que todo el contenido quede visible sin recortes.
+        </p>
+        <p class="tool-note">
+          Instrucciones detalladas:
+        </p>
+        <ol class="tool-steps">
+          <li>Selecciona uno o varios archivos PDF en el área de carga o arrástralos.</li>
+          <li>Al cargar, el sistema revisa cada página y la centra sin recortar información.</li>
+          <li>Haz clic en <strong>Escalar para impresión</strong> para generar el PDF ajustado.</li>
+          <li>Descarga el archivo resultante. Si subiste varios, recibirás un ZIP.</li>
+          <li>Al imprimir, usa escala 100% (sin ajustar al papel) para mantener el tamaño original.</li>
+        </ol>
+        <p class="tool-note">
+          Este módulo no elimina contenido ni modifica el texto; solo asegura que todo quede visible dentro de la página.
         </p>
 
-        <p>Instrucciones rápidas:</p>
-        <ul style="text-align:left; font-size:0.95rem; color:#374151; margin:1rem 0;">
-          <li>Sube uno o varios archivos <code>.pdf</code>.</li>
-          <li>Haz clic en <strong>Escalar para impresión</strong>.</li>
-          <li>Descarga el PDF ajustado (o un ZIP si son varios).</li>
-        </ul>
+        <!-- Opciones de impresión (ocultas por simplicidad) -->
+        <input type="hidden" id="targetSizePdf" value="LETTER">
+        <input type="hidden" id="marginPdf" value="0.92">
+        <span id="marginPdfValue" class="hidden" aria-hidden="true">92%</span>
+        <input type="checkbox" id="allowUpscalePdf" class="hidden" aria-hidden="true">
 
         <!-- Zona de Drag & Drop PDF -->
         <div class="upload-area" id="uploadAreaPdf">
@@ -139,12 +149,11 @@
 
         <!-- Estadísticas PDF -->
         <div id="statsContainerPdf" class="stats-container hidden">
-          <h3>Estadísticas de escalado</h3>
+          <h3>Estadísticas de impresión</h3>
           <div class="stats-grid" id="statsGridPdf"></div>
         </div>
 
-        <p style="font-size:0.85rem; color:#6b7280; margin-top:1rem;">
-          El sistema ajusta el tamaño de cada página a Carta sin recortar.
+        <p class="tool-note tool-note--muted">
           Si se cargan varios PDFs, se generará un ZIP con todos los resultados.
         </p>
       </section>
@@ -192,6 +201,10 @@
     const statusMessagePdf = document.getElementById("statusMessagePdf");
     const statsContainerPdf = document.getElementById("statsContainerPdf");
     const statsGridPdf = document.getElementById("statsGridPdf");
+    const targetSizePdf = document.getElementById("targetSizePdf");
+    const marginPdf = document.getElementById("marginPdf");
+    const marginPdfValue = document.getElementById("marginPdfValue");
+    const allowUpscalePdf = document.getElementById("allowUpscalePdf");
 
     // Estado de la aplicación
     let selectedFiles = [];
@@ -462,6 +475,11 @@
       }
     });
 
+    marginPdf.addEventListener("input", () => {
+      const percent = Math.round(parseFloat(marginPdf.value) * 100);
+      marginPdfValue.textContent = `${percent}%`;
+    });
+
     processBtnPdf.addEventListener("click", async () => {
       if (selectedPdfFiles.length === 0) {
         showPdfStatus("Selecciona al menos un archivo .pdf", "error");
@@ -475,6 +493,9 @@
 
       const formData = new FormData();
       selectedPdfFiles.forEach(file => formData.append("archivo", file));
+      formData.append("target_size", targetSizePdf.value);
+      formData.append("margin_ratio", marginPdf.value);
+      formData.append("allow_upscale", allowUpscalePdf.checked ? "true" : "false");
 
       try {
         updatePdfProgress(10, "Enviando PDFs al servidor...");
@@ -593,7 +614,12 @@
       return {
         totalFiles: parseInt(headers.get("X-CleanDoc-Pdf-Total-Files") || 1),
         totalPages: parseInt(headers.get("X-CleanDoc-Pdf-Total-Pages") || 0),
-        adjustedPages: parseInt(headers.get("X-CleanDoc-Pdf-Adjusted-Pages") || 0)
+        adjustedPages: parseInt(headers.get("X-CleanDoc-Pdf-Adjusted-Pages") || 0),
+        avgScale: parseFloat(headers.get("X-CleanDoc-Pdf-Avg-Scale") || 1),
+        minScale: parseFloat(headers.get("X-CleanDoc-Pdf-Min-Scale") || 1),
+        maxScale: parseFloat(headers.get("X-CleanDoc-Pdf-Max-Scale") || 1),
+        targetSize: headers.get("X-CleanDoc-Pdf-Target-Size") || "LETTER",
+        marginRatio: parseFloat(headers.get("X-CleanDoc-Pdf-Margin-Ratio") || 0.95)
       };
     }
 
@@ -643,8 +669,16 @@
           <div class="stat-label">Páginas ajustadas</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">Carta</div>
+          <div class="stat-value">${Math.round(stats.avgScale * 100)}%</div>
+          <div class="stat-label">Escala promedio</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${stats.targetSize}</div>
           <div class="stat-label">Tamaño final</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${Math.round(stats.marginRatio * 100)}%</div>
+          <div class="stat-label">Margen aplicado</div>
         </div>
       `;
 

@@ -177,11 +177,23 @@ class PdfScalingStats:
     """Estadísticas de escalado de un PDF."""
     total_pages: int = 0
     adjusted_pages: int = 0
+    upscaled_pages: int = 0
+    avg_scale: float = 1.0
+    min_scale: float = 1.0
+    max_scale: float = 1.0
+    target_size: str = "LETTER"
+    margin_ratio: float = 0.92
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             'total_pages': self.total_pages,
             'adjusted_pages': self.adjusted_pages,
+            'upscaled_pages': self.upscaled_pages,
+            'avg_scale': round(self.avg_scale, 4),
+            'min_scale': round(self.min_scale, 4),
+            'max_scale': round(self.max_scale, 4),
+            'target_size': self.target_size,
+            'margin_ratio': round(self.margin_ratio, 4),
         }
 
 
@@ -195,13 +207,21 @@ def scale_pdf_for_print(
     file_stream,
     target_size: str = "LETTER",
     allow_upscale: bool = False,
+    margin_ratio: float = 0.92,
 ) -> tuple[BytesIO, PdfScalingStats]:
     """Escala un PDF para impresión sin recortar contenido."""
     if target_size not in PDF_PAGE_SIZES:
         raise InvalidFileError("Tamaño de página no soportado")
+    if margin_ratio <= 0 or margin_ratio > 1:
+        raise InvalidFileError("El margen de impresión no es válido")
 
     target_width, target_height = PDF_PAGE_SIZES[target_size]
     stats = PdfScalingStats()
+    stats.target_size = target_size
+    stats.margin_ratio = margin_ratio
+    total_scale = 0.0
+    min_scale = None
+    max_scale = None
 
     try:
         reader = PdfReader(file_stream)
@@ -216,27 +236,51 @@ def scale_pdf_for_print(
             width = float(page.mediabox.width)
             height = float(page.mediabox.height)
 
-            scale = min(target_width / width, target_height / height)
+            page_target_width, page_target_height = target_width, target_height
+            # Mantener orientacion: si la pagina es horizontal, usar tamaño horizontal.
+            if width > height:
+                page_target_width, page_target_height = target_height, target_width
+
+            content_width = page_target_width * margin_ratio
+            content_height = page_target_height * margin_ratio
+            scale = min(content_width / width, content_height / height)
             if not allow_upscale:
                 scale = min(scale, 1.0)
 
             new_page = PageObject.create_blank_page(
-                width=target_width,
-                height=target_height,
+                width=page_target_width,
+                height=page_target_height,
             )
 
-            tx = (target_width - width * scale) / 2
-            ty = (target_height - height * scale) / 2
+            tx = (page_target_width - width * scale) / 2
+            ty = (page_target_height - height * scale) / 2
 
-            content_page = page.copy()
+            # PageObject.copy() devuelve un dict en pypdf, lo que rompe add_transformation.
+            # Usamos la pagina original (no se agrega al writer) para aplicar la transformacion.
+            content_page = page
             content_page.add_transformation(
                 Transformation().scale(scale).translate(tx, ty)
             )
             new_page.merge_page(content_page)
             writer.add_page(new_page)
 
-            if width != target_width or height != target_height or scale != 1.0:
+            if (
+                width != page_target_width
+                or height != page_target_height
+                or scale != 1.0
+            ):
                 stats.adjusted_pages += 1
+            if scale > 1.0:
+                stats.upscaled_pages += 1
+
+            total_scale += scale
+            min_scale = scale if min_scale is None else min(min_scale, scale)
+            max_scale = scale if max_scale is None else max(max_scale, scale)
+
+        if stats.total_pages > 0:
+            stats.avg_scale = total_scale / stats.total_pages
+            stats.min_scale = min_scale if min_scale is not None else 1.0
+            stats.max_scale = max_scale if max_scale is not None else 1.0
 
         output = BytesIO()
         writer.write(output)

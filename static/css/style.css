@@ -150,6 +150,16 @@ code {
   transition: var(--transition);
 }
 
+.tool-card--minimal {
+  padding: 2.5rem;
+  box-shadow: none;
+}
+
+.tool-card--minimal:hover {
+  box-shadow: none;
+  transform: none;
+}
+
 .tool-card:hover {
   box-shadow: var(--shadow-lg);
   transform: translateY(-2px);
@@ -169,6 +179,109 @@ code {
   font-weight: 600;
   font-size: 1rem;
   margin: 1.5rem 0 1rem 0;
+}
+
+.tool-note {
+  font-size: 0.95rem;
+  color: var(--color-text);
+  margin: 0.75rem 0 1.25rem 0;
+}
+
+.tool-steps {
+  margin: 0 0 1.25rem 1.25rem;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.tool-steps li {
+  margin-bottom: 0.5rem;
+}
+
+.tool-note--muted {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-top: 1rem;
+}
+
+/* =========================================================
+   PDF OPTIONS & PRINT SECTION
+   ========================================================= */
+.options-card,
+.print-card {
+  background: var(--color-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.options-card--minimal {
+  margin-top: 1rem;
+  padding: 1.25rem;
+}
+
+.options-grid,
+.print-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.option-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.option-field select,
+.option-field input[type="range"] {
+  width: 100%;
+}
+
+.option-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.option-value {
+  font-weight: 600;
+  color: var(--color-primary);
+  min-width: 3rem;
+  text-align: right;
+}
+
+.option-toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.print-item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.print-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.print-value {
+  font-size: 0.95rem;
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 /* =========================================================
