@@ -5,15 +5,16 @@ Funciones de validacion, excepciones y limpieza de documentos.
 """
 
 import logging
+import math
 import os
 import re
 from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
-
 from docx import Document
 from pypdf import PdfReader, PdfWriter, PageObject, Transformation
+from pypdf.generic import ContentStream
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -178,22 +179,26 @@ class PdfScalingStats:
     total_pages: int = 0
     adjusted_pages: int = 0
     upscaled_pages: int = 0
+    output_pages: int = 0
     avg_scale: float = 1.0
     min_scale: float = 1.0
     max_scale: float = 1.0
     target_size: str = "LETTER"
     margin_ratio: float = 0.92
+    n_up: int = 1
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             'total_pages': self.total_pages,
             'adjusted_pages': self.adjusted_pages,
             'upscaled_pages': self.upscaled_pages,
+            'output_pages': self.output_pages,
             'avg_scale': round(self.avg_scale, 4),
             'min_scale': round(self.min_scale, 4),
             'max_scale': round(self.max_scale, 4),
             'target_size': self.target_size,
             'margin_ratio': round(self.margin_ratio, 4),
+            'n_up': self.n_up,
         }
 
 
@@ -203,11 +208,33 @@ PDF_PAGE_SIZES = {
 }
 
 
+def _page_has_table_lines(page: PageObject, reader: PdfReader) -> bool:
+    """Detecta líneas de tablas buscando operadores de trazo en el contenido."""
+    try:
+        contents = page.get_contents()
+        if not contents:
+            return False
+        content_stream = ContentStream(contents, reader)
+        line_ops = 0
+        rect_ops = 0
+
+        for operands, operator in content_stream.operations:
+            if operator == b"re":
+                rect_ops += 1
+            elif operator in (b"l", b"m", b"S", b"s", b"B", b"b", b"B*", b"b*"):
+                line_ops += 1
+
+        return rect_ops >= 3 or line_ops >= 30
+    except Exception:
+        return False
+
+
 def scale_pdf_for_print(
     file_stream,
     target_size: str = "LETTER",
     allow_upscale: bool = False,
     margin_ratio: float = 0.92,
+    n_up: int = 1,
 ) -> tuple[BytesIO, PdfScalingStats]:
     """Escala un PDF para impresión sin recortar contenido."""
     if target_size not in PDF_PAGE_SIZES:
@@ -215,72 +242,101 @@ def scale_pdf_for_print(
     if margin_ratio <= 0 or margin_ratio > 1:
         raise InvalidFileError("El margen de impresión no es válido")
 
-    target_width, target_height = PDF_PAGE_SIZES[target_size]
-    stats = PdfScalingStats()
-    stats.target_size = target_size
-    stats.margin_ratio = margin_ratio
-    total_scale = 0.0
-    min_scale = None
-    max_scale = None
-
     try:
         reader = PdfReader(file_stream)
         if reader.is_encrypted:
             if not reader.decrypt(""):
                 raise InvalidFileError("El PDF está protegido con contraseña")
 
+        stats = PdfScalingStats()
+        stats.target_size = target_size
+        stats.margin_ratio = margin_ratio
+        stats.n_up = n_up
+        total_scale = 0.0
+        min_scale = None
+        max_scale = None
+
         writer = PdfWriter()
+
+        slots_per_page = n_up
+        slot_cols = 1 if n_up == 2 else 2 if n_up == 4 else 1
+        slot_rows = 1 if n_up == 1 else 2
+        slot_width = PDF_PAGE_SIZES[target_size][0] / slot_cols
+        slot_height = PDF_PAGE_SIZES[target_size][1] / slot_rows
+        slot_index = 0
+        output_page = None
 
         for page in reader.pages:
             stats.total_pages += 1
             width = float(page.mediabox.width)
             height = float(page.mediabox.height)
+            has_table_lines = _page_has_table_lines(page, reader)
 
-            page_target_width, page_target_height = target_width, target_height
-            # Mantener orientacion: si la pagina es horizontal, usar tamaño horizontal.
-            if width > height:
-                page_target_width, page_target_height = target_height, target_width
+            page_target_width, page_target_height = PDF_PAGE_SIZES[target_size]
+            if n_up == 1 and width > height:
+                page_target_width, page_target_height = page_target_height, page_target_width
+                slot_width = page_target_width
+                slot_height = page_target_height
+            elif n_up == 1:
+                slot_width = page_target_width
+                slot_height = page_target_height
 
-            content_width = page_target_width * margin_ratio
-            content_height = page_target_height * margin_ratio
-            scale = min(content_width / width, content_height / height)
+            content_width = slot_width * margin_ratio
+            content_height = slot_height * margin_ratio
+
+            scale_uniform = min(content_width / width, content_height / height)
             if not allow_upscale:
-                scale = min(scale, 1.0)
+                scale_uniform = min(scale_uniform, 1.0)
+            scale_x = scale_uniform
+            scale_y = scale_uniform
 
-            new_page = PageObject.create_blank_page(
-                width=page_target_width,
-                height=page_target_height,
+            if output_page is None:
+                output_page = PageObject.create_blank_page(
+                    width=page_target_width,
+                    height=page_target_height,
+                )
+
+            slot_col = slot_index % slot_cols
+            slot_row = slot_index // slot_cols
+            slot_x = slot_col * slot_width
+            slot_y = page_target_height - (slot_row + 1) * slot_height
+
+            tx = slot_x + (slot_width - width * scale_x) / 2
+            ty = slot_y + (slot_height - height * scale_y) / 2
+            output_page.merge_transformed_page(
+                page,
+                Transformation().scale(scale_x, scale_y).translate(tx, ty),
             )
 
-            tx = (page_target_width - width * scale) / 2
-            ty = (page_target_height - height * scale) / 2
-
-            # PageObject.copy() devuelve un dict en pypdf, lo que rompe add_transformation.
-            # Usamos la pagina original (no se agrega al writer) para aplicar la transformacion.
-            content_page = page
-            content_page.add_transformation(
-                Transformation().scale(scale).translate(tx, ty)
-            )
-            new_page.merge_page(content_page)
-            writer.add_page(new_page)
+            slot_index += 1
+            if slot_index >= slots_per_page:
+                writer.add_page(output_page)
+                output_page = None
+                slot_index = 0
 
             if (
-                width != page_target_width
-                or height != page_target_height
-                or scale != 1.0
+                width != slot_width
+                or height != slot_height
+                or scale_x != 1.0
+                or scale_y != 1.0
             ):
                 stats.adjusted_pages += 1
-            if scale > 1.0:
+            if scale_x > 1.0 or scale_y > 1.0:
                 stats.upscaled_pages += 1
 
-            total_scale += scale
-            min_scale = scale if min_scale is None else min(min_scale, scale)
-            max_scale = scale if max_scale is None else max(max_scale, scale)
+            scale_for_stats = min(scale_x, scale_y)
+            total_scale += scale_for_stats
+            min_scale = scale_for_stats if min_scale is None else min(min_scale, scale_for_stats)
+            max_scale = scale_for_stats if max_scale is None else max(max_scale, scale_for_stats)
+
+        if output_page is not None:
+            writer.add_page(output_page)
 
         if stats.total_pages > 0:
             stats.avg_scale = total_scale / stats.total_pages
             stats.min_scale = min_scale if min_scale is not None else 1.0
             stats.max_scale = max_scale if max_scale is not None else 1.0
+            stats.output_pages = len(writer.pages)
 
         output = BytesIO()
         writer.write(output)

@@ -99,13 +99,13 @@
         </p>
         <ol class="tool-steps">
           <li>Selecciona uno o varios archivos PDF en el área de carga o arrástralos.</li>
-          <li>Al cargar, el sistema revisa cada página y la centra sin recortar información.</li>
+          <li>Al cargar, el sistema centra cada página para que todo sea visible sin recortes.</li>
           <li>Haz clic en <strong>Escalar para impresión</strong> para generar el PDF ajustado.</li>
           <li>Descarga el archivo resultante. Si subiste varios, recibirás un ZIP.</li>
           <li>Al imprimir, usa escala 100% (sin ajustar al papel) para mantener el tamaño original.</li>
         </ol>
         <p class="tool-note">
-          Este módulo no elimina contenido ni modifica el texto; solo asegura que todo quede visible dentro de la página.
+          Este módulo no elimina contenido ni modifica el texto; solo ajusta la presentación.
         </p>
 
         <!-- Opciones de impresión (ocultas por simplicidad) -->
@@ -113,6 +113,7 @@
         <input type="hidden" id="marginPdf" value="0.92">
         <span id="marginPdfValue" class="hidden" aria-hidden="true">92%</span>
         <input type="checkbox" id="allowUpscalePdf" class="hidden" aria-hidden="true">
+        <input type="hidden" id="nUpPdf" value="1">
 
         <!-- Zona de Drag & Drop PDF -->
         <div class="upload-area" id="uploadAreaPdf">
@@ -205,6 +206,7 @@
     const marginPdf = document.getElementById("marginPdf");
     const marginPdfValue = document.getElementById("marginPdfValue");
     const allowUpscalePdf = document.getElementById("allowUpscalePdf");
+    const nUpPdf = document.getElementById("nUpPdf");
 
     // Estado de la aplicación
     let selectedFiles = [];
@@ -496,6 +498,7 @@
       formData.append("target_size", targetSizePdf.value);
       formData.append("margin_ratio", marginPdf.value);
       formData.append("allow_upscale", allowUpscalePdf.checked ? "true" : "false");
+      formData.append("n_up", nUpPdf.value);
 
       try {
         updatePdfProgress(10, "Enviando PDFs al servidor...");
@@ -614,12 +617,14 @@
       return {
         totalFiles: parseInt(headers.get("X-CleanDoc-Pdf-Total-Files") || 1),
         totalPages: parseInt(headers.get("X-CleanDoc-Pdf-Total-Pages") || 0),
+        outputPages: parseInt(headers.get("X-CleanDoc-Pdf-Output-Pages") || 0),
         adjustedPages: parseInt(headers.get("X-CleanDoc-Pdf-Adjusted-Pages") || 0),
         avgScale: parseFloat(headers.get("X-CleanDoc-Pdf-Avg-Scale") || 1),
         minScale: parseFloat(headers.get("X-CleanDoc-Pdf-Min-Scale") || 1),
         maxScale: parseFloat(headers.get("X-CleanDoc-Pdf-Max-Scale") || 1),
         targetSize: headers.get("X-CleanDoc-Pdf-Target-Size") || "LETTER",
-        marginRatio: parseFloat(headers.get("X-CleanDoc-Pdf-Margin-Ratio") || 0.95)
+        marginRatio: parseFloat(headers.get("X-CleanDoc-Pdf-Margin-Ratio") || 0.95),
+        nUp: parseInt(headers.get("X-CleanDoc-Pdf-N-Up") || 1)
       };
     }
 
@@ -665,6 +670,10 @@
           <div class="stat-label">Páginas totales</div>
         </div>
         <div class="stat-item">
+          <div class="stat-value">${stats.outputPages || stats.totalPages}</div>
+          <div class="stat-label">Páginas de salida</div>
+        </div>
+        <div class="stat-item">
           <div class="stat-value">${stats.adjustedPages}</div>
           <div class="stat-label">Páginas ajustadas</div>
         </div>
@@ -679,6 +688,10 @@
         <div class="stat-item">
           <div class="stat-value">${Math.round(stats.marginRatio * 100)}%</div>
           <div class="stat-label">Margen aplicado</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${stats.nUp || 1}</div>
+          <div class="stat-label">N-up aplicado</div>
         </div>
       `;
 
