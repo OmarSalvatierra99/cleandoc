@@ -399,32 +399,134 @@ class DocumentCleaner:
     def _normalize_whitespace(text: str) -> str:
         return re.sub(r"\s+", " ", text or "")
 
-    def _remove_header_images(self, doc: Document) -> None:
-        for section in doc.sections:
+    @staticmethod
+    def _iter_document_parts(doc: Document, prefix: str) -> list:
+        parts = []
+        seen = set()
+
+        # Recorremos las partes OPC del paquete para evitar la recursión
+        # infinita que puede disparar python-docx al resolver headers/footers
+        # linked-to-previous en documentos complejos.
+        for part in doc.part.package.parts:
+            partname = str(getattr(part, 'partname', ''))
+            if not partname.startswith(prefix) or not partname.endswith('.xml'):
+                continue
+
+            element = getattr(part, '_element', None)
+            if element is None:
+                continue
+
+            element_id = id(element)
+            if element_id in seen:
+                continue
+            seen.add(element_id)
+            parts.append(element)
+
+        return parts
+
+    @classmethod
+    def _iter_section_headers(cls, doc: Document) -> list:
+        return cls._iter_document_parts(doc, '/word/header')
+
+    @classmethod
+    def _iter_section_footers(cls, doc: Document) -> list:
+        return cls._iter_document_parts(doc, '/word/footer')
+
+    @staticmethod
+    def _run_has_non_graphic_content(run_element) -> bool:
+        visible_markers = (
+            ".//*[local-name()='t' or local-name()='tab' or local-name()='br' "
+            "or local-name()='cr' or local-name()='instrText' "
+            "or local-name()='delText' or local-name()='sym']"
+        )
+
+        for node in run_element.xpath(visible_markers):
+            text = getattr(node, 'text', None)
+            if text is None or text.strip():
+                return True
+
+        return False
+
+    def _resolve_graphic_removal_target(self, graphic_element):
+        if graphic_element.xpath("ancestor::*[local-name()='tbl']"):
+            return None
+
+        if (
+            graphic_element.xpath("ancestor::*[local-name()='txbxContent']")
+            or graphic_element.xpath(".//*[local-name()='txbxContent']")
+        ):
+            return None
+
+        run_ancestors = graphic_element.xpath("ancestor::*[local-name()='r'][1]")
+        if not run_ancestors:
+            return graphic_element
+
+        run_element = run_ancestors[0]
+        if self._run_has_non_graphic_content(run_element):
+            return graphic_element
+
+        paragraph_ancestors = run_element.xpath("ancestor::*[local-name()='p'][1]")
+        if not paragraph_ancestors:
+            return run_element
+
+        paragraph_element = paragraph_ancestors[0]
+        paragraph_has_text = bool(
+            paragraph_element.xpath(
+                ".//*[local-name()='t' or local-name()='instrText' "
+                "or local-name()='delText' or local-name()='sym']"
+            )
+        )
+
+        if paragraph_has_text:
+            return run_element
+
+        return paragraph_element
+
+    def _remove_graphics_from_header(self, header_element) -> None:
+        removable_graphics = (
+            header_element.xpath(".//*[local-name()='drawing']")
+            + header_element.xpath(".//*[local-name()='pict']")
+        )
+
+        targets = {}
+
+        for graphic in removable_graphics:
             try:
-                drawings = section.header._element.xpath(".//*[local-name()='drawing']")
-                for shape in drawings:
-                    if shape.xpath("ancestor::*[local-name()='tbl']"):
-                        continue
+                target = self._resolve_graphic_removal_target(graphic)
+                if target is None:
+                    continue
 
-                    parent = shape.getparent()
-                    if parent is not None:
-                        parent.remove(shape)
-                        self.stats.images_removed += 1
+                key = id(target)
+                if key not in targets:
+                    targets[key] = {
+                        'element': target,
+                        'count': 0,
+                    }
+                targets[key]['count'] += 1
 
-                picts = section.header._element.xpath(".//*[local-name()='pict']")
-                for pict in picts:
-                    if pict.xpath("ancestor::*[local-name()='tbl']"):
-                        continue
+            except Exception as e:
+                error_msg = f"Error evaluando imagen de encabezado: {str(e)}"
+                logger.error(error_msg)
+                self.stats.errors.append(error_msg)
 
-                    if pict.xpath(".//*[local-name()='txbxContent']"):
-                        continue
+        for item in targets.values():
+            target = item['element']
+            parent = target.getparent()
+            if parent is None:
+                continue
 
-                    parent = pict.getparent()
-                    if parent is not None:
-                        parent.remove(pict)
-                        self.stats.images_removed += 1
+            try:
+                parent.remove(target)
+                self.stats.images_removed += item['count']
+            except Exception as e:
+                error_msg = f"Error eliminando imagen de encabezado: {str(e)}"
+                logger.error(error_msg)
+                self.stats.errors.append(error_msg)
 
+    def _remove_header_images(self, doc: Document) -> None:
+        for header in self._iter_section_headers(doc):
+            try:
+                self._remove_graphics_from_header(header)
             except Exception as e:
                 error_msg = f"Error eliminando imágenes de encabezado: {str(e)}"
                 logger.error(error_msg)
@@ -487,15 +589,16 @@ class DocumentCleaner:
     def _remove_signature_section(self, doc: Document) -> None:
         try:
             indice_inicio = None
-            for i, p in enumerate(doc.paragraphs):
+            paragraphs = list(doc.paragraphs)
+
+            for i, p in enumerate(paragraphs):
                 if self.PATTERN_ELABORO.search(p.text.replace(" ", "")):
                     indice_inicio = i
                     break
 
             if indice_inicio is not None:
-                paragraphs_to_remove = len(doc.paragraphs) - indice_inicio
-                for j in range(len(doc.paragraphs) - 1, indice_inicio - 1, -1):
-                    para = doc.paragraphs[j]
+                paragraphs_to_remove = len(paragraphs) - indice_inicio
+                for para in reversed(paragraphs[indice_inicio:]):
                     para._element.getparent().remove(para._element)
 
                 self.stats.signature_section_removed = True
@@ -514,9 +617,10 @@ class DocumentCleaner:
             self._remove_header_images(doc)
             self._clean_institutional_paragraphs(doc)
             self._clean_textboxes(doc._element)
-            for section in doc.sections:
-                self._clean_textboxes(section.header._element)
-                self._clean_textboxes(section.footer._element)
+            for header in self._iter_section_headers(doc):
+                self._clean_textboxes(header)
+            for footer in self._iter_section_footers(doc):
+                self._clean_textboxes(footer)
             self._remove_signature_section(doc)
 
             output = BytesIO()
@@ -530,13 +634,6 @@ class DocumentCleaner:
             logger.error(error_msg, exc_info=True)
             raise FileProcessingError(error_msg, filename=filename)
 
-
-_cleaner_instance: Optional[DocumentCleaner] = None
-
-
 def get_cleaner() -> DocumentCleaner:
-    """Obtiene la instancia singleton del limpiador."""
-    global _cleaner_instance
-    if _cleaner_instance is None:
-        _cleaner_instance = DocumentCleaner()
-    return _cleaner_instance
+    """Crea una instancia fresca del limpiador para cada procesamiento."""
+    return DocumentCleaner()
