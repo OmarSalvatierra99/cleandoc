@@ -9,22 +9,16 @@
 </head>
 
 <body>
-  <!-- =======================================================
-       CABECERA
-  ======================================================= -->
   <header class="header-fixed">
     <div class="header-content">
       <img src="{{ url_for('static', filename='img/ofs_logo.png') }}" alt="Logo OFS Tlaxcala" class="ofs-logo">
       <div class="header-text">
         <h1>CleanDoc <span class="version">v2.0</span></h1>
-        <p>Sistema de limpieza institucional de documentos Word (.docx)</p>
+        <p>Órgano de Fiscalización Superior · Tlaxcala</p>
       </div>
     </div>
   </header>
 
-  <!-- =======================================================
-       CONTENIDO PRINCIPAL
-  ======================================================= -->
   <main class="main-content">
     <div class="tools-stack">
       <section class="tool-card">
@@ -44,7 +38,6 @@
 
         <p>El resto del contenido —observaciones, cédulas, cálculos y texto técnico— permanece sin alteraciones.</p>
 
-        <!-- Zona de Drag & Drop -->
         <div class="upload-area" id="uploadArea">
           <div class="upload-icon">📁</div>
           <h3>Arrastra archivos aquí</h3>
@@ -53,7 +46,6 @@
           <span class="file-types">Solo archivos .docx (máx. 50 MB)</span>
         </div>
 
-        <!-- Vista previa de archivos -->
         <div id="filePreview" class="file-preview hidden">
           <h3>Archivos seleccionados (<span id="fileCount">0</span>)</h3>
           <div id="fileList" class="file-list"></div>
@@ -63,21 +55,18 @@
           </button>
         </div>
 
-        <!-- Barra de progreso -->
         <div id="progressContainer" class="progress-container hidden">
           <div class="progress-header">
-            <span id="progressText">Procesando documentos...</span>
-            <span id="progressPercent">0%</span>
+            <span id="progressText" class="progress-text">Procesando documentos...</span>
+            <span id="progressPercent" class="progress-percent">0%</span>
           </div>
           <div class="progress-bar">
             <div id="progressFill" class="progress-fill"></div>
           </div>
         </div>
 
-        <!-- Mensaje de estado -->
         <div id="statusMessage" class="status-message hidden"></div>
 
-        <!-- Estadísticas de limpieza -->
         <div id="statsContainer" class="stats-container hidden">
           <h3>Estadísticas de limpieza</h3>
           <div class="stats-grid" id="statsGrid"></div>
@@ -89,92 +78,122 @@
         </p>
       </section>
 
-      <section class="tool-card tool-card--minimal">
-        <h2>Organizador de PDFs para impresión</h2>
+      <section class="tool-card tool-card--compact">
+        <h2>Organizar cédulas de resultados PDF</h2>
         <p class="tool-note">
-          Ajusta y centra cada página para que todo el contenido quede visible sin recortes.
-        </p>
-        <p class="tool-note">
-          Instrucciones detalladas:
+          Sube uno o varios archivos PDF y el sistema renombrará cada archivo con el formato
+          <code>NUM_SIGLA_FF_PERIODO_ANEXO.pdf</code> dentro de un ZIP plano.
         </p>
         <ol class="tool-steps">
-          <li>Selecciona uno o varios archivos PDF en el área de carga o arrástralos.</li>
-          <li>Al cargar, el sistema centra cada página para que todo sea visible sin recortes.</li>
-          <li>Haz clic en <strong>Escalar para impresión</strong> para generar el PDF ajustado.</li>
-          <li>Descarga el archivo resultante. Si subiste varios, recibirás un ZIP.</li>
-          <li>Al imprimir, usa escala 100% (sin ajustar al papel) para mantener el tamaño original.</li>
+          <li>Se toma la sigla y el número oficial del ente desde el catálogo institucional.</li>
+          <li>Si el ente no aparece exacto, se busca el más parecido del catálogo; no se inventan claves sin número.</li>
+          <li>La descarga no incluye carpetas ni archivo resumen.</li>
         </ol>
-        <p class="tool-note">
-          Este módulo no elimina contenido ni modifica el texto; solo ajusta la presentación.
-        </p>
 
-        <!-- Opciones de impresión (ocultas por simplicidad) -->
-        <input type="hidden" id="targetSizePdf" value="LETTER">
-        <input type="hidden" id="marginPdf" value="0.92">
-        <span id="marginPdfValue" class="hidden" aria-hidden="true">92%</span>
-        <input type="checkbox" id="allowUpscalePdf" class="hidden" aria-hidden="true">
-        <input type="hidden" id="nUpPdf" value="1">
-
-        <!-- Zona de Drag & Drop PDF -->
-        <div class="upload-area" id="uploadAreaPdf">
-          <div class="upload-icon">🧾</div>
+        <div class="upload-area" id="uploadAreaOrganizerPdf">
+          <div class="upload-icon">🗂️</div>
           <h3>Arrastra PDFs aquí</h3>
           <p>o haz clic para seleccionar</p>
-          <input type="file" id="fileInputPdf" name="archivo" accept=".pdf" multiple hidden>
+          <input type="file" id="fileInputOrganizerPdf" name="archivo" accept=".pdf" multiple hidden>
           <span class="file-types">Solo archivos .pdf (máx. 50 MB)</span>
         </div>
 
-        <!-- Vista previa de PDFs -->
-        <div id="filePreviewPdf" class="file-preview hidden">
-          <h3>PDFs seleccionados (<span id="fileCountPdf">0</span>)</h3>
-          <div id="fileListPdf" class="file-list"></div>
-          <button type="button" id="processBtnPdf" class="btn-primary">
-            <span class="btn-icon">📐</span>
-            Escalar para impresión
+        <div id="filePreviewOrganizerPdf" class="file-preview hidden">
+          <h3>PDFs seleccionados (<span id="fileCountOrganizerPdf">0</span>)</h3>
+          <div id="fileListOrganizerPdf" class="file-list"></div>
+          <button type="button" id="processBtnOrganizerPdf" class="btn-primary">
+            <span class="btn-icon">🧾</span>
+            Organizar PDFs
           </button>
         </div>
 
-        <!-- Barra de progreso PDF -->
-        <div id="progressContainerPdf" class="progress-container hidden">
+        <div id="progressContainerOrganizerPdf" class="progress-container hidden">
           <div class="progress-header">
-            <span id="progressTextPdf">Procesando PDFs...</span>
-            <span id="progressPercentPdf">0%</span>
+            <span id="progressTextOrganizerPdf" class="progress-text">Analizando PDFs...</span>
+            <span id="progressPercentOrganizerPdf" class="progress-percent">0%</span>
           </div>
           <div class="progress-bar">
-            <div id="progressFillPdf" class="progress-fill"></div>
+            <div id="progressFillOrganizerPdf" class="progress-fill"></div>
           </div>
         </div>
 
-        <!-- Mensaje de estado PDF -->
-        <div id="statusMessagePdf" class="status-message hidden"></div>
-
-        <!-- Estadísticas PDF -->
-        <div id="statsContainerPdf" class="stats-container hidden">
-          <h3>Estadísticas de impresión</h3>
-          <div class="stats-grid" id="statsGridPdf"></div>
-        </div>
+        <div id="statusMessageOrganizerPdf" class="status-message hidden"></div>
 
         <p class="tool-note tool-note--muted">
-          Si se cargan varios PDFs, se generará un ZIP con todos los resultados.
+          Ejemplo de salida: <code>1.7_SI_PE_FGP_MAY-JUN_SA.pdf</code>
         </p>
+      </section>
+
+      <section class="tool-card tool-card--compact">
+        <h2>Contador de cédulas PDF</h2>
+        <p class="tool-note">
+          Sube cédulas de resultados en PDF y obtén al instante el total de hojas
+          y observaciones desglosadas por tipo de anexo. Ideal para preparar oficios.
+        </p>
+
+        <div class="upload-area" id="uploadAreaContador">
+          <div class="upload-icon">📊</div>
+          <h3>Arrastra PDFs aquí</h3>
+          <p>o haz clic para seleccionar</p>
+          <input type="file" id="fileInputContador" name="archivo" accept=".pdf" multiple hidden>
+          <span class="file-types">Solo archivos .pdf (máx. 50 MB)</span>
+        </div>
+
+        <div id="filePreviewContador" class="file-preview hidden">
+          <h3>PDFs seleccionados (<span id="fileCountContador">0</span>)</h3>
+          <div id="fileListContador" class="file-list"></div>
+          <button type="button" id="processBtnContador" class="btn-primary">
+            <span class="btn-icon">📊</span>
+            Contar páginas y observaciones
+          </button>
+        </div>
+
+        <div id="progressContainerContador" class="progress-container hidden">
+          <div class="progress-header">
+            <span id="progressTextContador" class="progress-text">Analizando PDFs...</span>
+            <span id="progressPercentContador" class="progress-percent">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div id="progressFillContador" class="progress-fill"></div>
+          </div>
+        </div>
+
+        <div id="statusMessageContador" class="status-message hidden"></div>
+
+        <div id="contadorResults" class="contador-results hidden">
+          <div class="contador-hero">
+            <div class="contador-hero-item">
+              <span class="contador-hero-value" id="contadorTotalPdfs">0</span>
+              <span class="contador-hero-label">PDFs</span>
+            </div>
+            <div class="contador-hero-sep"></div>
+            <div class="contador-hero-item">
+              <span class="contador-hero-value" id="contadorTotalPaginas">0</span>
+              <span class="contador-hero-label">Páginas</span>
+            </div>
+            <div class="contador-hero-sep"></div>
+            <div class="contador-hero-item">
+              <span class="contador-hero-value" id="contadorTotalObs">0</span>
+              <span class="contador-hero-label">Observaciones</span>
+            </div>
+          </div>
+
+          <div id="contadorAnexoTable" class="contador-anexo-table"></div>
+
+          <details class="contador-detail">
+            <summary>Ver detalle por archivo (<span id="contadorDetailCount">0</span>)</summary>
+            <div class="contador-detail-list" id="contadorDetailList"></div>
+          </details>
+        </div>
       </section>
     </div>
   </main>
 
-  <!-- =======================================================
-       PIE DE PÁGINA
-  ======================================================= -->
   <footer class="dashboard-footer">
     © Órgano de Fiscalización Superior del Estado de Tlaxcala — Sistema CleanDoc v2.0
   </footer>
 
-  <!-- =======================================================
-       SCRIPT PRINCIPAL
-  ======================================================= -->
   <script>
-    // ============================================================
-    // ELEMENTOS DEL DOM
-    // ============================================================
     const uploadArea = document.getElementById("uploadArea");
     const fileInput = document.getElementById("fileInput");
     const filePreview = document.getElementById("filePreview");
@@ -189,228 +208,41 @@
     const statsContainer = document.getElementById("statsContainer");
     const statsGrid = document.getElementById("statsGrid");
 
-    const uploadAreaPdf = document.getElementById("uploadAreaPdf");
-    const fileInputPdf = document.getElementById("fileInputPdf");
-    const filePreviewPdf = document.getElementById("filePreviewPdf");
-    const fileListPdf = document.getElementById("fileListPdf");
-    const fileCountPdf = document.getElementById("fileCountPdf");
-    const processBtnPdf = document.getElementById("processBtnPdf");
-    const progressContainerPdf = document.getElementById("progressContainerPdf");
-    const progressFillPdf = document.getElementById("progressFillPdf");
-    const progressTextPdf = document.getElementById("progressTextPdf");
-    const progressPercentPdf = document.getElementById("progressPercentPdf");
-    const statusMessagePdf = document.getElementById("statusMessagePdf");
-    const statsContainerPdf = document.getElementById("statsContainerPdf");
-    const statsGridPdf = document.getElementById("statsGridPdf");
-    const targetSizePdf = document.getElementById("targetSizePdf");
-    const marginPdf = document.getElementById("marginPdf");
-    const marginPdfValue = document.getElementById("marginPdfValue");
-    const allowUpscalePdf = document.getElementById("allowUpscalePdf");
-    const nUpPdf = document.getElementById("nUpPdf");
+    const uploadAreaOrganizerPdf = document.getElementById("uploadAreaOrganizerPdf");
+    const fileInputOrganizerPdf = document.getElementById("fileInputOrganizerPdf");
+    const filePreviewOrganizerPdf = document.getElementById("filePreviewOrganizerPdf");
+    const fileListOrganizerPdf = document.getElementById("fileListOrganizerPdf");
+    const fileCountOrganizerPdf = document.getElementById("fileCountOrganizerPdf");
+    const processBtnOrganizerPdf = document.getElementById("processBtnOrganizerPdf");
+    const progressContainerOrganizerPdf = document.getElementById("progressContainerOrganizerPdf");
+    const progressFillOrganizerPdf = document.getElementById("progressFillOrganizerPdf");
+    const progressTextOrganizerPdf = document.getElementById("progressTextOrganizerPdf");
+    const progressPercentOrganizerPdf = document.getElementById("progressPercentOrganizerPdf");
+    const statusMessageOrganizerPdf = document.getElementById("statusMessageOrganizerPdf");
 
-    // Estado de la aplicación
     let selectedFiles = [];
-    let selectedPdfFiles = [];
+    let selectedOrganizerPdfFiles = [];
 
-    // ============================================================
-    // DRAG & DROP
-    // ============================================================
     uploadArea.addEventListener("click", () => fileInput.click());
+    uploadAreaOrganizerPdf.addEventListener("click", () => fileInputOrganizerPdf.click());
 
-    uploadArea.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      uploadArea.classList.add("drag-over");
-    });
-
-    uploadArea.addEventListener("dragleave", () => {
-      uploadArea.classList.remove("drag-over");
-    });
-
-    uploadArea.addEventListener("drop", (e) => {
-      e.preventDefault();
-      uploadArea.classList.remove("drag-over");
-
-      const files = Array.from(e.dataTransfer.files).filter(
-        file => file.name.toLowerCase().endsWith('.docx')
-      );
-
-      if (files.length > 0) {
-        handleFiles(files);
-      } else {
-        showStatus("Solo se permiten archivos .docx", "error");
-      }
-    });
+    attachDragAndDrop(uploadArea, ".docx", handleFiles, showStatus, "Solo se permiten archivos .docx");
+    attachDragAndDrop(
+      uploadAreaOrganizerPdf,
+      ".pdf",
+      handleOrganizerPdfFiles,
+      showOrganizerPdfStatus,
+      "Solo se permiten archivos .pdf"
+    );
 
     fileInput.addEventListener("change", (e) => {
-      const files = Array.from(e.target.files);
-      handleFiles(files);
+      handleFiles(Array.from(e.target.files));
     });
 
-    uploadAreaPdf.addEventListener("click", () => fileInputPdf.click());
-
-    uploadAreaPdf.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      uploadAreaPdf.classList.add("drag-over");
+    fileInputOrganizerPdf.addEventListener("change", (e) => {
+      handleOrganizerPdfFiles(Array.from(e.target.files));
     });
 
-    uploadAreaPdf.addEventListener("dragleave", () => {
-      uploadAreaPdf.classList.remove("drag-over");
-    });
-
-    uploadAreaPdf.addEventListener("drop", (e) => {
-      e.preventDefault();
-      uploadAreaPdf.classList.remove("drag-over");
-
-      const files = Array.from(e.dataTransfer.files).filter(
-        file => file.name.toLowerCase().endsWith('.pdf')
-      );
-
-      if (files.length > 0) {
-        handlePdfFiles(files);
-      } else {
-        showPdfStatus("Solo se permiten archivos .pdf", "error");
-      }
-    });
-
-    fileInputPdf.addEventListener("change", (e) => {
-      const files = Array.from(e.target.files);
-      handlePdfFiles(files);
-    });
-
-    // ============================================================
-    // MANEJO DE ARCHIVOS
-    // ============================================================
-    function handleFiles(files) {
-      selectedFiles = files;
-      displayFilePreview();
-      hideStatus();
-      hideStats();
-    }
-
-    function handlePdfFiles(files) {
-      selectedPdfFiles = files;
-      displayPdfPreview();
-      hidePdfStatus();
-      hidePdfStats();
-    }
-
-    function displayFilePreview() {
-      if (selectedFiles.length === 0) {
-        filePreview.classList.add("hidden");
-        return;
-      }
-
-      filePreview.classList.remove("hidden");
-      fileCount.textContent = selectedFiles.length;
-      fileList.innerHTML = "";
-
-      selectedFiles.forEach((file, index) => {
-        const fileItem = createFileItem(file, index);
-        fileList.appendChild(fileItem);
-      });
-    }
-
-    function createFileItem(file, index) {
-      const item = document.createElement("div");
-      item.className = "file-item";
-
-      const fileSize = formatFileSize(file.size);
-
-      item.innerHTML = `
-        <div class="file-info">
-          <span class="file-icon">📄</span>
-          <div class="file-details">
-            <span class="file-name">${escapeHtml(file.name)}</span>
-            <span class="file-size">${fileSize}</span>
-          </div>
-        </div>
-        <button type="button" class="btn-remove" data-index="${index}" title="Eliminar">
-          ✕
-        </button>
-      `;
-
-      const removeBtn = item.querySelector(".btn-remove");
-      removeBtn.addEventListener("click", () => removeFile(index));
-
-      return item;
-    }
-
-    function removeFile(index) {
-      selectedFiles.splice(index, 1);
-      displayFilePreview();
-
-      if (selectedFiles.length === 0) {
-        fileInput.value = "";
-      }
-    }
-
-    function displayPdfPreview() {
-      if (selectedPdfFiles.length === 0) {
-        filePreviewPdf.classList.add("hidden");
-        return;
-      }
-
-      filePreviewPdf.classList.remove("hidden");
-      fileCountPdf.textContent = selectedPdfFiles.length;
-      fileListPdf.innerHTML = "";
-
-      selectedPdfFiles.forEach((file, index) => {
-        const fileItem = createPdfFileItem(file, index);
-        fileListPdf.appendChild(fileItem);
-      });
-    }
-
-    function createPdfFileItem(file, index) {
-      const item = document.createElement("div");
-      item.className = "file-item";
-
-      const fileSize = formatFileSize(file.size);
-
-      item.innerHTML = `
-        <div class="file-info">
-          <span class="file-icon">🧾</span>
-          <div class="file-details">
-            <span class="file-name">${escapeHtml(file.name)}</span>
-            <span class="file-size">${fileSize}</span>
-          </div>
-        </div>
-        <button type="button" class="btn-remove" data-index="${index}" title="Eliminar">
-          ✕
-        </button>
-      `;
-
-      const removeBtn = item.querySelector(".btn-remove");
-      removeBtn.addEventListener("click", () => removePdfFile(index));
-
-      return item;
-    }
-
-    function removePdfFile(index) {
-      selectedPdfFiles.splice(index, 1);
-      displayPdfPreview();
-
-      if (selectedPdfFiles.length === 0) {
-        fileInputPdf.value = "";
-      }
-    }
-
-    function formatFileSize(bytes) {
-      if (bytes === 0) return "0 Bytes";
-      const k = 1024;
-      const sizes = ["Bytes", "KB", "MB", "GB"];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
-    }
-
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    // ============================================================
-    // PROCESAMIENTO
-    // ============================================================
     processBtn.addEventListener("click", async () => {
       if (selectedFiles.length === 0) {
         showStatus("Selecciona al menos un archivo .docx", "error");
@@ -442,24 +274,8 @@
 
         updateProgress(80, "Preparando descarga...");
 
-        // Extraer estadísticas de los headers
         const stats = extractStats(response.headers);
-
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-
-        const contentDisposition = response.headers.get("Content-Disposition");
-        const filename = contentDisposition
-          ? contentDisposition.split("filename=")[1]?.replace(/"/g, "")
-          : "resultado.zip";
-
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        await downloadResponseFile(response, "cleandoc_limpios.zip");
 
         updateProgress(100, "¡Completado!");
 
@@ -469,7 +285,6 @@
           displayStats(stats);
           resetForm();
         }, 500);
-
       } catch (error) {
         hideProgress();
         showStatus(`❌ ${error.message}`, "error");
@@ -477,83 +292,206 @@
       }
     });
 
-    marginPdf.addEventListener("input", () => {
-      const percent = Math.round(parseFloat(marginPdf.value) * 100);
-      marginPdfValue.textContent = `${percent}%`;
-    });
-
-    processBtnPdf.addEventListener("click", async () => {
-      if (selectedPdfFiles.length === 0) {
-        showPdfStatus("Selecciona al menos un archivo .pdf", "error");
+    processBtnOrganizerPdf.addEventListener("click", async () => {
+      if (selectedOrganizerPdfFiles.length === 0) {
+        showOrganizerPdfStatus("Selecciona al menos un archivo .pdf", "error");
         return;
       }
 
-      processBtnPdf.disabled = true;
-      showPdfProgress();
-      hidePdfStatus();
-      hidePdfStats();
+      processBtnOrganizerPdf.disabled = true;
+      showOrganizerPdfProgress();
+      hideOrganizerPdfStatus();
 
       const formData = new FormData();
-      selectedPdfFiles.forEach(file => formData.append("archivo", file));
-      formData.append("target_size", targetSizePdf.value);
-      formData.append("margin_ratio", marginPdf.value);
-      formData.append("allow_upscale", allowUpscalePdf.checked ? "true" : "false");
-      formData.append("n_up", nUpPdf.value);
+      selectedOrganizerPdfFiles.forEach(file => formData.append("archivo", file));
 
       try {
-        updatePdfProgress(10, "Enviando PDFs al servidor...");
+        updateOrganizerPdfProgress(15, "Enviando PDFs al servidor...");
 
-        const response = await fetch("/escalar_cedula_pdf", {
+        const response = await fetch("/organizar_cedula_resultados_pdf", {
           method: "POST",
           body: formData
         });
 
-        updatePdfProgress(60, "Ajustando páginas para impresión...");
+        updateOrganizerPdfProgress(70, "Construyendo ZIP...");
 
         if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.error || "Error al procesar los PDFs");
+          throw new Error(await buildOrganizerPdfErrorMessageFromResponse(response));
         }
 
-        updatePdfProgress(85, "Preparando descarga...");
-
-        const stats = extractPdfStats(response.headers);
-
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-
-        const contentDisposition = response.headers.get("Content-Disposition");
-        const filename = contentDisposition
-          ? contentDisposition.split("filename=")[1]?.replace(/"/g, "")
-          : "cedulas_escaladas.zip";
-
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        updatePdfProgress(100, "¡Completado!");
+        await downloadResponseFile(response, "cedulas_resultados_organizadas.zip");
+        updateOrganizerPdfProgress(100, "ZIP listo");
 
         setTimeout(() => {
-          hidePdfProgress();
-          showPdfStatus("✅ Descarga completada exitosamente", "success");
-          displayPdfStats(stats);
-          resetPdfForm();
-        }, 500);
-
+          hideOrganizerPdfProgress();
+          showOrganizerPdfStatus("ZIP descargado correctamente", "success");
+          resetOrganizerPdfForm();
+        }, 400);
       } catch (error) {
-        hidePdfProgress();
-        showPdfStatus(`❌ ${error.message}`, "error");
-        processBtnPdf.disabled = false;
+        hideOrganizerPdfProgress();
+        showOrganizerPdfStatus(error.message, "error");
+        processBtnOrganizerPdf.disabled = false;
       }
     });
 
-    // ============================================================
-    // UI HELPERS
-    // ============================================================
+    async function buildOrganizerPdfErrorMessageFromResponse(response) {
+      let data = null;
+      let rawText = "";
+
+      try {
+        data = await response.clone().json();
+      } catch (jsonError) {
+        rawText = (await response.text().catch(() => "")).trim();
+      }
+
+      return buildOrganizerPdfErrorMessage(data, response.status, rawText);
+    }
+
+    function buildOrganizerPdfErrorMessage(data, status = null, rawText = "") {
+      const lines = [];
+
+      if (status) {
+        lines.push(`HTTP ${status}`);
+      }
+
+      if (!data || typeof data !== "object") {
+        if (rawText) {
+          lines.push(rawText);
+        } else {
+          lines.push("Error al organizar los PDFs");
+        }
+        return lines.join("\n");
+      }
+
+      if (data.error) {
+        lines.push(data.error);
+      }
+
+      if (data.message) {
+        lines.push(data.message);
+      }
+
+      if (Array.isArray(data.details) && data.details.length > 0) {
+        lines.push("Detalle:");
+        data.details.forEach(detail => lines.push(`- ${detail}`));
+      }
+
+      if (rawText && !data.message && (!Array.isArray(data.details) || data.details.length === 0)) {
+        lines.push(rawText);
+      }
+
+      return lines.join("\n") || "Error al organizar los PDFs";
+    }
+
+    function attachDragAndDrop(uploadTarget, extension, onFiles, onError, errorMessage) {
+      uploadTarget.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadTarget.classList.add("drag-over");
+      });
+
+      uploadTarget.addEventListener("dragleave", () => {
+        uploadTarget.classList.remove("drag-over");
+      });
+
+      uploadTarget.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadTarget.classList.remove("drag-over");
+
+        const files = Array.from(e.dataTransfer.files).filter(
+          file => file.name.toLowerCase().endsWith(extension)
+        );
+
+        if (files.length > 0) {
+          onFiles(files);
+          return;
+        }
+
+        onError(errorMessage, "error");
+      });
+    }
+
+    function handleFiles(files) {
+      selectedFiles = files;
+      displayFilePreview();
+      hideStatus();
+      hideStats();
+    }
+
+    function handleOrganizerPdfFiles(files) {
+      selectedOrganizerPdfFiles = files;
+      displayOrganizerPdfPreview();
+      hideOrganizerPdfStatus();
+    }
+
+    function displayFilePreview() {
+      if (selectedFiles.length === 0) {
+        filePreview.classList.add("hidden");
+        return;
+      }
+
+      filePreview.classList.remove("hidden");
+      fileCount.textContent = selectedFiles.length;
+      fileList.innerHTML = "";
+
+      selectedFiles.forEach((file, index) => {
+        fileList.appendChild(createFileItem(file, index, "📄", removeFile));
+      });
+    }
+
+    function displayOrganizerPdfPreview() {
+      if (selectedOrganizerPdfFiles.length === 0) {
+        filePreviewOrganizerPdf.classList.add("hidden");
+        return;
+      }
+
+      filePreviewOrganizerPdf.classList.remove("hidden");
+      fileCountOrganizerPdf.textContent = selectedOrganizerPdfFiles.length;
+      fileListOrganizerPdf.innerHTML = "";
+
+      selectedOrganizerPdfFiles.forEach((file, index) => {
+        fileListOrganizerPdf.appendChild(createFileItem(file, index, "🧾", removeOrganizerPdfFile));
+      });
+    }
+
+    function createFileItem(file, index, icon, onRemove) {
+      const item = document.createElement("div");
+      item.className = "file-item";
+
+      item.innerHTML = `
+        <div class="file-info">
+          <span class="file-icon">${icon}</span>
+          <div class="file-details">
+            <span class="file-name">${escapeHtml(file.name)}</span>
+            <span class="file-size">${formatFileSize(file.size)}</span>
+          </div>
+        </div>
+        <button type="button" class="btn-remove" data-index="${index}" title="Eliminar">✕</button>
+      `;
+
+      const removeBtn = item.querySelector(".btn-remove");
+      removeBtn.addEventListener("click", () => onRemove(index));
+
+      return item;
+    }
+
+    function removeFile(index) {
+      selectedFiles.splice(index, 1);
+      displayFilePreview();
+
+      if (selectedFiles.length === 0) {
+        fileInput.value = "";
+      }
+    }
+
+    function removeOrganizerPdfFile(index) {
+      selectedOrganizerPdfFiles.splice(index, 1);
+      displayOrganizerPdfPreview();
+
+      if (selectedOrganizerPdfFiles.length === 0) {
+        fileInputOrganizerPdf.value = "";
+      }
+    }
+
     function showProgress() {
       progressContainer.classList.remove("hidden");
     }
@@ -568,6 +506,20 @@
       progressText.textContent = text;
     }
 
+    function showOrganizerPdfProgress() {
+      progressContainerOrganizerPdf.classList.remove("hidden");
+    }
+
+    function hideOrganizerPdfProgress() {
+      progressContainerOrganizerPdf.classList.add("hidden");
+    }
+
+    function updateOrganizerPdfProgress(percent, text) {
+      progressFillOrganizerPdf.style.width = `${percent}%`;
+      progressPercentOrganizerPdf.textContent = `${percent}%`;
+      progressTextOrganizerPdf.textContent = text;
+    }
+
     function showStatus(message, type) {
       statusMessage.textContent = message;
       statusMessage.className = `status-message status-${type}`;
@@ -578,28 +530,45 @@
       statusMessage.classList.add("hidden");
     }
 
-    function showPdfProgress() {
-      progressContainerPdf.classList.remove("hidden");
+    function showOrganizerPdfStatus(message, type) {
+      statusMessageOrganizerPdf.textContent = message;
+      statusMessageOrganizerPdf.className = `status-message status-${type}`;
+      statusMessageOrganizerPdf.classList.remove("hidden");
     }
 
-    function hidePdfProgress() {
-      progressContainerPdf.classList.add("hidden");
+    function hideOrganizerPdfStatus() {
+      statusMessageOrganizerPdf.classList.add("hidden");
     }
 
-    function updatePdfProgress(percent, text) {
-      progressFillPdf.style.width = `${percent}%`;
-      progressPercentPdf.textContent = `${percent}%`;
-      progressTextPdf.textContent = text;
+    function displayStats(stats) {
+      const hasMultipleFiles = stats.totalFiles > 1;
+
+      statsGrid.innerHTML = `
+        ${hasMultipleFiles ? `
+          <div class="stat-item">
+            <div class="stat-value">${stats.totalFiles}</div>
+            <div class="stat-label">Archivos procesados</div>
+          </div>
+        ` : ""}
+        <div class="stat-item">
+          <div class="stat-value">${hasMultipleFiles ? stats.totalImages : stats.imagesRemoved}</div>
+          <div class="stat-label">Imágenes eliminadas</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${hasMultipleFiles ? stats.totalParagraphs : stats.paragraphsCleaned}</div>
+          <div class="stat-label">Párrafos limpiados</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${stats.signatureRemoved ? "Sí" : "N/A"}</div>
+          <div class="stat-label">Firmas eliminadas</div>
+        </div>
+      `;
+
+      statsContainer.classList.remove("hidden");
     }
 
-    function showPdfStatus(message, type) {
-      statusMessagePdf.textContent = message;
-      statusMessagePdf.className = `status-message status-${type}`;
-      statusMessagePdf.classList.remove("hidden");
-    }
-
-    function hidePdfStatus() {
-      statusMessagePdf.classList.add("hidden");
+    function hideStats() {
+      statsContainer.classList.add("hidden");
     }
 
     function extractStats(headers) {
@@ -613,97 +582,27 @@
       };
     }
 
-    function extractPdfStats(headers) {
-      return {
-        totalFiles: parseInt(headers.get("X-CleanDoc-Pdf-Total-Files") || 1),
-        totalPages: parseInt(headers.get("X-CleanDoc-Pdf-Total-Pages") || 0),
-        outputPages: parseInt(headers.get("X-CleanDoc-Pdf-Output-Pages") || 0),
-        adjustedPages: parseInt(headers.get("X-CleanDoc-Pdf-Adjusted-Pages") || 0),
-        avgScale: parseFloat(headers.get("X-CleanDoc-Pdf-Avg-Scale") || 1),
-        minScale: parseFloat(headers.get("X-CleanDoc-Pdf-Min-Scale") || 1),
-        maxScale: parseFloat(headers.get("X-CleanDoc-Pdf-Max-Scale") || 1),
-        targetSize: headers.get("X-CleanDoc-Pdf-Target-Size") || "LETTER",
-        marginRatio: parseFloat(headers.get("X-CleanDoc-Pdf-Margin-Ratio") || 0.95),
-        nUp: parseInt(headers.get("X-CleanDoc-Pdf-N-Up") || 1)
-      };
+    async function downloadResponseFile(response, fallbackName) {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = getFilenameFromResponse(response, fallbackName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
 
-    function displayStats(stats) {
-      const hasMultipleFiles = stats.totalFiles > 1;
+    function getFilenameFromResponse(response, fallbackName) {
+      const contentDisposition = response.headers.get("Content-Disposition");
 
-      statsGrid.innerHTML = `
-        ${hasMultipleFiles ? `
-          <div class="stat-item">
-            <div class="stat-value">${stats.totalFiles}</div>
-            <div class="stat-label">Archivos procesados</div>
-          </div>
-        ` : ''}
-        <div class="stat-item">
-          <div class="stat-value">${hasMultipleFiles ? stats.totalImages : stats.imagesRemoved}</div>
-          <div class="stat-label">Imágenes eliminadas</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">${hasMultipleFiles ? stats.totalParagraphs : stats.paragraphsCleaned}</div>
-          <div class="stat-label">Párrafos limpiados</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">${stats.signatureRemoved ? 'Sí' : 'N/A'}</div>
-          <div class="stat-label">Firmas eliminadas</div>
-        </div>
-      `;
+      if (!contentDisposition) {
+        return fallbackName;
+      }
 
-      statsContainer.classList.remove("hidden");
-    }
-
-    function displayPdfStats(stats) {
-      const hasMultipleFiles = stats.totalFiles > 1;
-
-      statsGridPdf.innerHTML = `
-        ${hasMultipleFiles ? `
-          <div class="stat-item">
-            <div class="stat-value">${stats.totalFiles}</div>
-            <div class="stat-label">PDFs procesados</div>
-          </div>
-        ` : ''}
-        <div class="stat-item">
-          <div class="stat-value">${stats.totalPages}</div>
-          <div class="stat-label">Páginas totales</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">${stats.outputPages || stats.totalPages}</div>
-          <div class="stat-label">Páginas de salida</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">${stats.adjustedPages}</div>
-          <div class="stat-label">Páginas ajustadas</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">${Math.round(stats.avgScale * 100)}%</div>
-          <div class="stat-label">Escala promedio</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">${stats.targetSize}</div>
-          <div class="stat-label">Tamaño final</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">${Math.round(stats.marginRatio * 100)}%</div>
-          <div class="stat-label">Margen aplicado</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">${stats.nUp || 1}</div>
-          <div class="stat-label">N-up aplicado</div>
-        </div>
-      `;
-
-      statsContainerPdf.classList.remove("hidden");
-    }
-
-    function hideStats() {
-      statsContainer.classList.add("hidden");
-    }
-
-    function hidePdfStats() {
-      statsContainerPdf.classList.add("hidden");
+      const parts = contentDisposition.split("filename=");
+      return parts[1] ? parts[1].replace(/"/g, "") : fallbackName;
     }
 
     function resetForm() {
@@ -713,11 +612,221 @@
       processBtn.disabled = false;
     }
 
-    function resetPdfForm() {
-      selectedPdfFiles = [];
-      fileInputPdf.value = "";
-      filePreviewPdf.classList.add("hidden");
-      processBtnPdf.disabled = false;
+    function resetOrganizerPdfForm() {
+      selectedOrganizerPdfFiles = [];
+      fileInputOrganizerPdf.value = "";
+      filePreviewOrganizerPdf.classList.add("hidden");
+      processBtnOrganizerPdf.disabled = false;
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes === 0) return "0 Bytes";
+      const k = 1024;
+      const sizes = ["Bytes", "KB", "MB", "GB"];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    /* ── Contador de cédulas PDF ─────────────────────────────── */
+
+    const uploadAreaContador = document.getElementById("uploadAreaContador");
+    const fileInputContador = document.getElementById("fileInputContador");
+    const filePreviewContador = document.getElementById("filePreviewContador");
+    const fileListContador = document.getElementById("fileListContador");
+    const fileCountContador = document.getElementById("fileCountContador");
+    const processBtnContador = document.getElementById("processBtnContador");
+    const progressContainerContador = document.getElementById("progressContainerContador");
+    const progressFillContador = document.getElementById("progressFillContador");
+    const progressTextContador = document.getElementById("progressTextContador");
+    const progressPercentContador = document.getElementById("progressPercentContador");
+    const statusMessageContador = document.getElementById("statusMessageContador");
+    const contadorResults = document.getElementById("contadorResults");
+
+    let selectedContadorFiles = [];
+
+    uploadAreaContador.addEventListener("click", () => fileInputContador.click());
+
+    attachDragAndDrop(
+      uploadAreaContador,
+      ".pdf",
+      handleContadorFiles,
+      showContadorStatus,
+      "Solo se permiten archivos .pdf"
+    );
+
+    fileInputContador.addEventListener("change", (e) => {
+      handleContadorFiles(Array.from(e.target.files));
+    });
+
+    function handleContadorFiles(files) {
+      selectedContadorFiles = files;
+      displayContadorPreview();
+      hideContadorStatus();
+      contadorResults.classList.add("hidden");
+    }
+
+    function displayContadorPreview() {
+      if (selectedContadorFiles.length === 0) {
+        filePreviewContador.classList.add("hidden");
+        return;
+      }
+      filePreviewContador.classList.remove("hidden");
+      fileCountContador.textContent = selectedContadorFiles.length;
+      fileListContador.innerHTML = "";
+      selectedContadorFiles.forEach((file, index) => {
+        fileListContador.appendChild(createFileItem(file, index, "📊", removeContadorFile));
+      });
+    }
+
+    function removeContadorFile(index) {
+      selectedContadorFiles.splice(index, 1);
+      displayContadorPreview();
+      if (selectedContadorFiles.length === 0) fileInputContador.value = "";
+    }
+
+    function showContadorStatus(message, type) {
+      statusMessageContador.textContent = message;
+      statusMessageContador.className = `status-message status-${type}`;
+      statusMessageContador.classList.remove("hidden");
+    }
+
+    function hideContadorStatus() {
+      statusMessageContador.classList.add("hidden");
+    }
+
+    processBtnContador.addEventListener("click", async () => {
+      if (selectedContadorFiles.length === 0) {
+        showContadorStatus("Selecciona al menos un archivo .pdf", "error");
+        return;
+      }
+
+      processBtnContador.disabled = true;
+      progressContainerContador.classList.remove("hidden");
+      hideContadorStatus();
+      contadorResults.classList.add("hidden");
+
+      const formData = new FormData();
+      selectedContadorFiles.forEach(file => formData.append("archivo", file));
+
+      try {
+        updateContadorProgress(15, "Enviando PDFs...");
+
+        const response = await fetch("/contar_cedulas_pdf", {
+          method: "POST",
+          body: formData,
+        });
+
+        updateContadorProgress(70, "Procesando resultados...");
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || "Error al contar los PDFs");
+        }
+
+        const data = await response.json();
+        updateContadorProgress(100, "Listo");
+
+        setTimeout(() => {
+          progressContainerContador.classList.add("hidden");
+          renderContadorResults(data);
+          resetContadorForm();
+        }, 300);
+      } catch (error) {
+        progressContainerContador.classList.add("hidden");
+        showContadorStatus(error.message, "error");
+        processBtnContador.disabled = false;
+      }
+    });
+
+    function updateContadorProgress(percent, text) {
+      progressFillContador.style.width = `${percent}%`;
+      progressPercentContador.textContent = `${percent}%`;
+      progressTextContador.textContent = text;
+    }
+
+    function resetContadorForm() {
+      selectedContadorFiles = [];
+      fileInputContador.value = "";
+      filePreviewContador.classList.add("hidden");
+      processBtnContador.disabled = false;
+    }
+
+    const ANEXO_LABELS = {
+      "PRAS": "Resp. Administrativa Sancionatoria",
+      "PEFCF": "Comprobación Fiscal",
+      "PDP": "Posible Daño Patrimonial",
+      "SA": "Solicitud de Aclaración",
+      "R": "Recomendación",
+      "SIN_ANEXO": "Sin anexo",
+    };
+
+    function renderContadorResults(data) {
+      document.getElementById("contadorTotalPdfs").textContent = data.total_pdfs;
+      document.getElementById("contadorTotalPaginas").textContent = data.total_paginas.toLocaleString();
+      document.getElementById("contadorTotalObs").textContent = data.total_observaciones.toLocaleString();
+
+      const tableEl = document.getElementById("contadorAnexoTable");
+      const anexos = data.por_anexo;
+      const keys = Object.keys(anexos);
+
+      if (keys.length === 0) {
+        tableEl.innerHTML = '<p class="tool-note tool-note--muted">No se detectaron anexos.</p>';
+      } else {
+        let rows = keys
+          .sort((a, b) => anexos[b].observaciones - anexos[a].observaciones)
+          .map(key => {
+            const a = anexos[key];
+            return `
+              <tr>
+                <td><span class="contador-badge">${escapeHtml(key)}</span></td>
+                <td class="td-label">${escapeHtml(ANEXO_LABELS[key] || a.label)}</td>
+                <td class="td-num">${a.pdfs}</td>
+                <td class="td-num">${a.paginas.toLocaleString()}</td>
+                <td class="td-num td-obs">${a.observaciones.toLocaleString()}</td>
+              </tr>`;
+          }).join("");
+
+        tableEl.innerHTML = `
+          <table class="contador-table">
+            <thead>
+              <tr>
+                <th>Anexo</th>
+                <th>Tipo</th>
+                <th>PDFs</th>
+                <th>Págs.</th>
+                <th>Obs.</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+      }
+
+      const detailList = document.getElementById("contadorDetailList");
+      document.getElementById("contadorDetailCount").textContent = data.archivos.length;
+
+      detailList.innerHTML = data.archivos.map(f => `
+        <div class="contador-detail-row">
+          <span class="file-name">${escapeHtml(f.nombre)}</span>
+          <span class="contador-detail-meta">
+            ${f.paginas} pág · ${f.observaciones} obs · ${escapeHtml(f.anexo)}
+          </span>
+        </div>
+      `).join("");
+
+      if (data.duplicados > 0 || data.omitidos > 0) {
+        let warnings = [];
+        if (data.duplicados > 0) warnings.push(`${data.duplicados} duplicado(s) omitido(s)`);
+        if (data.omitidos > 0) warnings.push(`${data.omitidos} archivo(s) sin texto`);
+        showContadorStatus(warnings.join(" · "), "warning");
+      }
+
+      contadorResults.classList.remove("hidden");
     }
   </script>
 </body>

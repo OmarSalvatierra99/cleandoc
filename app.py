@@ -33,16 +33,25 @@ if str(SCRIPTS_DIR) not in sys.path:
 from utils import (  # noqa: E402
     get_cleaner,
     CleaningStats,
-    PdfScalingStats,
     validate_docx_file,
-    validate_pdf_file,
     is_valid_docx_content,
-    is_valid_pdf_content,
-    scale_pdf_for_print,
     NoFilesProvidedError,
     InvalidFileError,
     FileProcessingError,
     CleanDocError,
+)
+from organizar_cedula_resultados_pdf import (  # noqa: E402
+    OrganizedPdfFile,
+    PdfOrganizationStats,
+    organizar_cedulas_resultados_pdf,
+    ANEXO_TYPES,
+    validar_pdf,
+    es_contenido_pdf_valido,
+    extraer_texto_pdf,
+    extraer_campos,
+    normalizar_espacios,
+    hash_pdf_stream,
+    describir_anexo,
 )
 
 
@@ -195,11 +204,12 @@ def _register_routes(app: Flask) -> None:
         app.logger.info("Acceso a pagina principal")
         return render_template("index.html")
 
-    @app.route("/health")
+    @app.route("/api/health")
+    @app.route("/health")  # alias de compatibilidad
     def health_check():
         return jsonify({
-            "status": "healthy",
-            "service": "CleanDoc",
+            "status": "ok",
+            "service": "cleandoc",
             "version": "2.0.0",
         }), 200
 
@@ -233,37 +243,83 @@ def _register_routes(app: Flask) -> None:
                 "message": "Ocurrió un error procesando los archivos",
             }), 500
 
-    @app.route("/escalar_cedula_pdf", methods=["POST"])
-    def escalar_pdf_endpoint():
+    @app.route("/organizar_cedula_resultados_pdf", methods=["POST"])
+    def organizar_cedula_resultados_pdf_endpoint():
         try:
             files: List[FileStorage] = request.files.getlist("archivo")
 
             if not files or all(not f.filename for f in files):
                 raise NoFilesProvidedError("No se proporcionaron archivos PDF")
 
-            target_size, allow_upscale, margin_ratio, n_up = _parse_pdf_options(request)
+            app.logger.info(
+                "Recibidos %s PDFs para organizar por sigla y periodo",
+                len(files),
+            )
+
+            max_size = current_app.config.get('MAX_FILE_SIZE', 50 * 1024 * 1024)
+            organized_files, stats = organizar_cedulas_resultados_pdf(
+                files,
+                max_size=max_size,
+            )
+
+            if not organized_files:
+                app.logger.warning(
+                    "No se pudo organizar ningún PDF válido: %s",
+                    "; ".join(stats.errors or stats.duplicate_names or ["sin detalle"]),
+                )
+                return jsonify(_build_pdf_organization_error_payload(stats)), 400
 
             app.logger.info(
-                f"Recibidos {len(files)} PDFs para escalar - "
-                f"Tamaño: {target_size}, "
-                f"Margen: {margin_ratio:.2f}, "
-                f"Escalado arriba: {'Sí' if allow_upscale else 'No'}"
+                "Organización PDF completada - Procesados: %s, Duplicados: %s, Omitidos: %s",
+                stats.processed_files,
+                stats.duplicates_removed,
+                stats.skipped_files,
+            )
+            if stats.duplicate_names:
+                app.logger.warning(
+                    "PDFs omitidos por duplicado: %s",
+                    "; ".join(stats.duplicate_names),
+                )
+            if stats.errors:
+                app.logger.warning(
+                    "Incidencias de organización PDF: %s",
+                    "; ".join(stats.errors),
+                )
+
+            return _send_organized_pdfs(organized_files, stats)
+
+        except CleanDocError as e:
+            app.logger.warning(f"Error de validación PDF: {e.message}")
+            return jsonify({"error": e.message}), e.status_code
+
+        except Exception as e:
+            app.logger.error(f"Error inesperado: {str(e)}", exc_info=True)
+            detail = str(e).strip() or e.__class__.__name__
+            return jsonify({
+                "error": "Error interno del servidor",
+                "message": f"Ocurrió un error organizando los PDFs: {detail}",
+                "details": [f"{e.__class__.__name__}: {detail}"],
+            }), 500
+
+    @app.route("/contar_cedulas_pdf", methods=["POST"])
+    def contar_cedulas_pdf_endpoint():
+        try:
+            files: List[FileStorage] = request.files.getlist("archivo")
+
+            if not files or all(not f.filename for f in files):
+                raise NoFilesProvidedError("No se proporcionaron archivos PDF")
+
+            max_size = current_app.config.get('MAX_FILE_SIZE', 50 * 1024 * 1024)
+            result = _count_pdf_stats(files, max_size)
+
+            app.logger.info(
+                "Conteo PDF completado - PDFs: %s, Páginas: %s, Observaciones: %s",
+                result["total_pdfs"],
+                result["total_paginas"],
+                result["total_observaciones"],
             )
 
-            scaled_files, stats_list = _process_pdf_files(
-                files,
-                target_size=target_size,
-                allow_upscale=allow_upscale,
-                margin_ratio=margin_ratio,
-                n_up=n_up,
-            )
-
-            if not scaled_files:
-                raise InvalidFileError("No se pudieron procesar PDFs válidos")
-
-            if len(scaled_files) == 1:
-                return _send_single_pdf(scaled_files[0], stats_list[0])
-            return _send_multiple_pdfs(scaled_files, stats_list)
+            return jsonify(result), 200
 
         except CleanDocError as e:
             app.logger.warning(f"Error de validación PDF: {e.message}")
@@ -273,8 +329,119 @@ def _register_routes(app: Flask) -> None:
             app.logger.error(f"Error inesperado: {str(e)}", exc_info=True)
             return jsonify({
                 "error": "Error interno del servidor",
-                "message": "Ocurrió un error procesando los PDFs",
+                "message": "Ocurrió un error contando los PDFs",
             }), 500
+
+
+def _count_pdf_stats(
+    files: List[FileStorage],
+    max_size: int,
+) -> dict:
+    """Analiza PDFs y devuelve conteo de páginas y observaciones por anexo."""
+    hashes: dict = {}
+    archivos = []
+    por_anexo: dict = {}
+    total_paginas = 0
+    total_observaciones = 0
+    duplicados = 0
+    omitidos = 0
+    errores = []
+
+    for file in files:
+        if not file or not file.filename:
+            omitidos += 1
+            continue
+
+        try:
+            safe_filename = validar_pdf(file, max_size)
+
+            if not es_contenido_pdf_valido(file.stream):
+                raise InvalidFileError("El archivo no es un PDF válido")
+
+            texto, page_count = extraer_texto_pdf(file.stream)
+            if not texto.strip():
+                omitidos += 1
+                errores.append(f"{safe_filename}: sin texto extraíble")
+                continue
+
+            texto_h = hash_pdf_stream(file.stream)
+
+            if texto_h in hashes:
+                duplicados += 1
+                continue
+            hashes[texto_h] = safe_filename
+
+            campos = extraer_campos(texto, filename=safe_filename)
+            anexo = campos["anexo"]
+            obs = campos["total_observaciones"]
+
+            total_paginas += page_count
+            total_observaciones += obs
+
+            if anexo not in por_anexo:
+                por_anexo[anexo] = {
+                    "label": describir_anexo(anexo),
+                    "pdfs": 0,
+                    "paginas": 0,
+                    "observaciones": 0,
+                }
+            por_anexo[anexo]["pdfs"] += 1
+            por_anexo[anexo]["paginas"] += page_count
+            por_anexo[anexo]["observaciones"] += obs
+
+            archivos.append({
+                "nombre": safe_filename,
+                "paginas": page_count,
+                "observaciones": obs,
+                "anexo": anexo,
+                "ente": campos["ente_original"],
+                "periodo": campos["periodo_original"],
+                "fuente": campos["fuente_original"],
+            })
+
+        except CleanDocError:
+            raise
+        except Exception as e:
+            omitidos += 1
+            errores.append(f"{file.filename}: {str(e)}")
+
+    return {
+        "total_pdfs": len(archivos),
+        "total_paginas": total_paginas,
+        "total_observaciones": total_observaciones,
+        "duplicados": duplicados,
+        "omitidos": omitidos,
+        "por_anexo": por_anexo,
+        "archivos": archivos,
+        "errores": errores,
+    }
+
+
+def _build_pdf_organization_error_payload(
+    stats: PdfOrganizationStats,
+    error: str = "No se pudo organizar ningún PDF válido",
+) -> dict:
+    """Construye una respuesta detallada cuando falla la organización PDF."""
+    duplicates = [
+        f"{name}: contenido duplicado"
+        for name in stats.duplicate_names
+    ]
+    details = list(stats.errors) + duplicates
+
+    if stats.duplicate_names and not stats.errors:
+        message = "Todos los archivos fueron omitidos por duplicado."
+    else:
+        message = (
+            "Todos los archivos fueron omitidos. "
+            "Revisa el detalle por archivo para corregir el contenido detectado."
+        )
+
+    return {
+        "error": error,
+        "message": message,
+        "details": details,
+        "stats": stats.to_dict(),
+    }
 
 
 def _process_files(
@@ -322,90 +489,6 @@ def _process_files(
     return cleaned_files, stats_list
 
 
-def _process_pdf_files(
-    files: List[FileStorage],
-    target_size: str = "LETTER",
-    allow_upscale: bool = False,
-    margin_ratio: float = 0.92,
-    n_up: int = 1,
-) -> Tuple[List[Tuple[str, BytesIO]], List[PdfScalingStats]]:
-    """Procesa multiples archivos PDF y los escala para impresión."""
-    scaled_files = []
-    stats_list = []
-    max_size = current_app.config.get('MAX_FILE_SIZE', 50 * 1024 * 1024)
-
-    for file in files:
-        if not file or not file.filename:
-            current_app.logger.warning("PDF vacío recibido, omitiendo")
-            continue
-
-        try:
-            safe_filename, _ = validate_pdf_file(file, max_size)
-
-            if not is_valid_pdf_content(file.stream):
-                current_app.logger.warning(
-                    f"Archivo '{safe_filename}' no es un PDF válido, omitiendo"
-                )
-                continue
-
-            file.stream.seek(0)
-            scaled_stream, stats = scale_pdf_for_print(
-                file.stream,
-                target_size=target_size,
-                allow_upscale=allow_upscale,
-                margin_ratio=margin_ratio,
-                n_up=n_up,
-            )
-
-            scaled_files.append((safe_filename, scaled_stream))
-            stats_list.append(stats)
-
-            current_app.logger.info(
-                f"PDF '{safe_filename}' escalado exitosamente - "
-                f"Estadísticas: {stats.to_dict()}"
-            )
-
-        except CleanDocError:
-            raise
-
-        except Exception as e:
-            error_msg = f"Error procesando '{file.filename}': {str(e)}"
-            current_app.logger.error(error_msg, exc_info=True)
-            continue
-
-    return scaled_files, stats_list
-
-
-def _parse_pdf_options(req) -> Tuple[str, bool, float, int]:
-    """Extrae y valida opciones de escalado desde el formulario."""
-    target_size = (req.form.get("target_size") or "LETTER").upper().strip()
-    if target_size not in ("LETTER", "A4"):
-        target_size = "LETTER"
-
-    allow_upscale = (req.form.get("allow_upscale") or "false").lower() == "true"
-
-    margin_raw = (req.form.get("margin_ratio") or "0.92").strip()
-    try:
-        margin_ratio = float(margin_raw)
-    except ValueError:
-        margin_ratio = 0.85
-
-    if margin_ratio < 0.75:
-        margin_ratio = 0.75
-    if margin_ratio > 1.0:
-        margin_ratio = 1.0
-
-    n_up_raw = (req.form.get("n_up") or "1").strip()
-    try:
-        n_up = int(n_up_raw)
-    except ValueError:
-        n_up = 1
-    if n_up not in (1, 2, 4):
-        n_up = 1
-
-    return target_size, allow_upscale, margin_ratio, n_up
-
-
 def _send_single_file(
     file_data: Tuple[str, BytesIO],
     stats: CleaningStats,
@@ -414,14 +497,14 @@ def _send_single_file(
     filename, stream = file_data
 
     current_app.logger.info(
-        f"Enviando archivo único: limpia_{filename} - "
+        f"Enviando archivo único: {filename} - "
         f"Estadísticas: {stats.to_dict()}"
     )
 
     response = send_file(
         stream,
         as_attachment=True,
-        download_name=f"limpia_{filename}",
+        download_name=filename,
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
@@ -443,12 +526,9 @@ def _send_multiple_files(
 
     try:
         with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zf:
-            for (filename, stream), stats in zip(files_data, stats_list):
-                zf.writestr(f"limpia_{filename}", stream.read())
-
-                stats_filename = f"limpia_{filename}_stats.txt"
-                stats_content = _format_stats(filename, stats)
-                zf.writestr(stats_filename, stats_content)
+            for (filename, stream), _stats in zip(files_data, stats_list):
+                stream.seek(0)
+                zf.writestr(filename, stream.read())
 
         tmp.seek(0)
 
@@ -480,153 +560,94 @@ def _send_multiple_files(
         raise FileProcessingError("Error creando archivo ZIP")
 
 
-def _send_single_pdf(
-    file_data: Tuple[str, BytesIO],
-    stats: PdfScalingStats,
+def _send_organized_pdfs(
+    files_data: List[OrganizedPdfFile],
+    stats: PdfOrganizationStats,
 ):
-    """Envia un unico PDF escalado."""
-    filename, stream = file_data
-
+    """Envía un ZIP con PDFs organizados por sigla y periodo."""
     current_app.logger.info(
-        f"Enviando PDF único: escalado_{filename} - "
-        f"Estadísticas: {stats.to_dict()}"
+        "Creando ZIP de organización PDF con %s archivos",
+        len(files_data),
     )
-
-    response = send_file(
-        stream,
-        as_attachment=True,
-        download_name=f"escalado_{filename}",
-        mimetype="application/pdf",
-    )
-
-    response.headers['X-CleanDoc-Pdf-Total-Files'] = "1"
-    response.headers['X-CleanDoc-Pdf-Total-Pages'] = str(stats.total_pages)
-    response.headers['X-CleanDoc-Pdf-Output-Pages'] = str(stats.output_pages)
-    response.headers['X-CleanDoc-Pdf-Adjusted-Pages'] = str(stats.adjusted_pages)
-    response.headers['X-CleanDoc-Pdf-Avg-Scale'] = f"{stats.avg_scale:.4f}"
-    response.headers['X-CleanDoc-Pdf-Min-Scale'] = f"{stats.min_scale:.4f}"
-    response.headers['X-CleanDoc-Pdf-Max-Scale'] = f"{stats.max_scale:.4f}"
-    response.headers['X-CleanDoc-Pdf-Target-Size'] = stats.target_size
-    response.headers['X-CleanDoc-Pdf-Margin-Ratio'] = f"{stats.margin_ratio:.4f}"
-    response.headers['X-CleanDoc-Pdf-N-Up'] = str(stats.n_up)
-
-    return response
-
-
-def _send_multiple_pdfs(
-    files_data: List[Tuple[str, BytesIO]],
-    stats_list: List[PdfScalingStats],
-):
-    """Envia multiples PDFs escalados en un ZIP."""
-    current_app.logger.info(f"Creando ZIP con {len(files_data)} PDFs escalados")
-
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
     try:
-        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zf:
-            for (filename, stream), stats in zip(files_data, stats_list):
-                zf.writestr(f"escalado_{filename}", stream.read())
+        zip_buffer = BytesIO()
 
-                stats_filename = f"escalado_{filename}_stats.txt"
-                stats_content = _format_pdf_stats(filename, stats)
-                zf.writestr(stats_filename, stats_content)
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            for item in files_data:
+                item.stream.seek(0)
+                zf.writestr(item.archive_path, item.stream.read())
 
-        tmp.seek(0)
+        zip_buffer.seek(0)
 
         response = send_file(
-            tmp.name,
+            zip_buffer,
             as_attachment=True,
-            download_name="cedulas_escaladas.zip",
+            download_name="cedulas_resultados_organizadas.zip",
             mimetype="application/zip",
         )
 
-        total_pages = sum(s.total_pages for s in stats_list)
-        total_output_pages = sum(s.output_pages for s in stats_list)
-        total_adjusted = sum(s.adjusted_pages for s in stats_list)
-        total_scale = sum(s.avg_scale * s.total_pages for s in stats_list)
-        avg_scale = total_scale / total_pages if total_pages else 1.0
-        min_scale = min(s.min_scale for s in stats_list) if stats_list else 1.0
-        max_scale = max(s.max_scale for s in stats_list) if stats_list else 1.0
-        target_size = stats_list[0].target_size if stats_list else "LETTER"
-        margin_ratio = stats_list[0].margin_ratio if stats_list else 0.95
-        n_up = stats_list[0].n_up if stats_list else 1
-
-        response.headers['X-CleanDoc-Pdf-Total-Files'] = str(len(files_data))
-        response.headers['X-CleanDoc-Pdf-Total-Pages'] = str(total_pages)
-        response.headers['X-CleanDoc-Pdf-Output-Pages'] = str(total_output_pages)
-        response.headers['X-CleanDoc-Pdf-Adjusted-Pages'] = str(total_adjusted)
-        response.headers['X-CleanDoc-Pdf-Avg-Scale'] = f"{avg_scale:.4f}"
-        response.headers['X-CleanDoc-Pdf-Min-Scale'] = f"{min_scale:.4f}"
-        response.headers['X-CleanDoc-Pdf-Max-Scale'] = f"{max_scale:.4f}"
-        response.headers['X-CleanDoc-Pdf-Target-Size'] = target_size
-        response.headers['X-CleanDoc-Pdf-Margin-Ratio'] = f"{margin_ratio:.4f}"
-        response.headers['X-CleanDoc-Pdf-N-Up'] = str(n_up)
-
-        current_app.logger.info(
-            "ZIP PDF creado exitosamente - "
-            f"Archivos: {len(files_data)}, "
-            f"Páginas: {total_pages}, "
-            f"Páginas ajustadas: {total_adjusted}"
-        )
+        response.headers['X-CleanDoc-Organizer-Total-Files'] = str(stats.total_files)
+        response.headers['X-CleanDoc-Organizer-Processed'] = str(stats.processed_files)
+        response.headers['X-CleanDoc-Organizer-Duplicates'] = str(stats.duplicates_removed)
+        response.headers['X-CleanDoc-Organizer-Skipped'] = str(stats.skipped_files)
+        response.headers['X-CleanDoc-Organizer-Folders'] = str(stats.folders_created)
+        response.headers['X-CleanDoc-Organizer-Pages'] = str(stats.total_pages)
+        response.headers['X-CleanDoc-Organizer-Observations'] = str(stats.total_observations)
 
         return response
-
     except Exception as e:
-        current_app.logger.error(f"Error creando ZIP de PDFs: {str(e)}", exc_info=True)
-        raise FileProcessingError("Error creando archivo ZIP de PDFs")
+        current_app.logger.error(f"Error creando ZIP de organización PDF: {str(e)}", exc_info=True)
+        raise FileProcessingError("Error creando archivo ZIP de organización PDF")
 
 
-def _format_stats(filename: str, stats: CleaningStats) -> str:
-    """Formatea las estadisticas de limpieza para incluir en el ZIP."""
+def _format_pdf_organization_summary(stats: PdfOrganizationStats) -> str:
+    """Formatea el resumen de organización PDF para incluir en el ZIP."""
+    organized_lines = [
+        (
+            f"  • {item['original_name']} -> {item['archive_path']} "
+            f"[ANEXO={item['anexo']}; OBS_REF={','.join(item['observacion_refs']) or 'N/A'}; "
+            f"OBS_FINAL={item['total_observaciones']}]"
+        )
+        for item in stats.organized_items
+    ] or ["  • Sin archivos organizados"]
+
+    duplicate_lines = [
+        f"  • {name}"
+        for name in stats.duplicate_names
+    ] or ["  • Sin duplicados detectados"]
+
+    error_lines = [
+        f"  • {error}"
+        for error in stats.errors
+    ] or ["  • Sin errores"]
+
     return f"""
 ═══════════════════════════════════════════════════════════════
-CleanDoc - Estadísticas de Limpieza
+CleanDoc - Organización de Cédulas de Resultados PDF
 ═══════════════════════════════════════════════════════════════
-
-Archivo: {filename}
-
-Elementos eliminados/limpiados:
-─────────────────────────────────────────────────────────────
-  • Imágenes de encabezados eliminadas: {stats.images_removed}
-  • Párrafos institucionales limpiados: {stats.institutional_paragraphs_cleaned}
-  • Textboxes limpiados: {stats.textboxes_cleaned}
-  • Sección de firmas eliminada: {'Sí' if stats.signature_section_removed else 'No'}
-  • Total de párrafos eliminados: {stats.paragraphs_removed}
-
-Estado: {'Completado con advertencias' if stats.errors else 'Completado exitosamente'}
-{f'Errores: {len(stats.errors)}' if stats.errors else ''}
-
-═══════════════════════════════════════════════════════════════
-© Órgano de Fiscalización Superior del Estado de Tlaxcala
-Sistema CleanDoc v2.0
-═══════════════════════════════════════════════════════════════
-""".strip()
-
-
-def _format_pdf_stats(filename: str, stats: PdfScalingStats) -> str:
-    """Formatea las estadisticas de escalado para incluir en el ZIP."""
-    return f"""
-═══════════════════════════════════════════════════════════════
-CleanDoc - Estadísticas de Escalado PDF
-═══════════════════════════════════════════════════════════════
-
-Archivo: {filename}
 
 Resumen:
 ─────────────────────────────────────────────────────────────
-  • Páginas totales: {stats.total_pages}
-  • Páginas de salida: {stats.output_pages}
-  • Páginas ajustadas: {stats.adjusted_pages}
-  • Escala promedio: {stats.avg_scale:.3f}
-  • Escala mínima: {stats.min_scale:.3f}
-  • Escala máxima: {stats.max_scale:.3f}
-  • Tamaño de salida: {stats.target_size}
-  • Margen aplicado: {stats.margin_ratio:.0%}
-  • N-up aplicado: {stats.n_up}
+  • PDFs recibidos: {stats.total_files}
+  • PDFs organizados: {stats.processed_files}
+  • Duplicados omitidos: {stats.duplicates_removed}
+  • PDFs omitidos por error: {stats.skipped_files}
+  • Carpetas creadas: {stats.folders_created}
+  • Páginas procesadas: {stats.total_pages}
+  • Observaciones al final: {stats.total_observations}
 
-Notas:
-  • El contenido se centra y se escala sin recortar información.
-  • Listo para impresión con márgenes de seguridad.
+Archivos organizados:
+─────────────────────────────────────────────────────────────
+{chr(10).join(organized_lines)}
+
+Duplicados detectados:
+─────────────────────────────────────────────────────────────
+{chr(10).join(duplicate_lines)}
+
+Incidencias:
+─────────────────────────────────────────────────────────────
+{chr(10).join(error_lines)}
 
 ═══════════════════════════════════════════════════════════════
 © Órgano de Fiscalización Superior del Estado de Tlaxcala
